@@ -25,7 +25,7 @@ export default function SubscribePage() {
   ];
 
   const toggleSubject = (id: string) => {
-    setSelectedSubjects(prev => 
+    setSelectedSubjects(prev =>
       prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
     );
   };
@@ -40,13 +40,13 @@ export default function SubscribePage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col md:flex-row font-sans selection:bg-blue-100 selection:text-[#001c56]">
-      
+
       {/* Right Side: Brand Panel */}
       <div className="hidden md:flex md:w-5/12 lg:w-4/12 relative bg-[#001c56] overflow-hidden flex-col justify-between p-12 text-white">
         {/* Dynamic Background */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-600/20 via-[#001c56] to-gray-900 z-0"></div>
         <div className="absolute top-0 right-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] z-0 mix-blend-overlay"></div>
-        
+
         {/* Brand Header */}
         <div className="relative z-10">
           <Link href="/" className="inline-flex items-center gap-3 hover:opacity-80 transition-opacity">
@@ -59,11 +59,11 @@ export default function SubscribePage() {
 
         {/* Value Proposition */}
         <div className="relative z-10 space-y-8 mt-12 mb-auto pt-12">
-          <h2 className="text-4xl font-black leading-tight">ابدأ رحلة النجاح <br/><span className="text-blue-400">لأكاديميتك اليوم</span></h2>
+          <h2 className="text-4xl font-black leading-tight">ابدأ رحلة النجاح <br /><span className="text-blue-400">لأكاديميتك اليوم</span></h2>
           <p className="text-blue-100/80 text-lg leading-relaxed font-medium max-w-sm">
             انضم إلى المنصة الأقوى لإدارة المراكز التعليمية في الوطن العربي. تحكم في كل شيء من مكان واحد.
           </p>
-          
+
           <div className="space-y-6 pt-4">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 border border-blue-400/20">
@@ -88,16 +88,16 @@ export default function SubscribePage() {
 
         {/* Footer info */}
         <div className="relative z-10 flex items-center gap-4 text-sm text-blue-200/60 font-medium">
-          <Link href="#" className="hover:text-white transition-colors">سياسة الخصوصية</Link>
+          <Link href="/privacy" className="hover:text-white transition-colors">سياسة الخصوصية</Link>
           <span>•</span>
-          <Link href="#" className="hover:text-white transition-colors">الشروط والأحكام</Link>
+          <Link href="/terms" className="hover:text-white transition-colors">الشروط والأحكام</Link>
         </div>
       </div>
 
       {/* Left Side: Form Panel */}
       <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-gray-50/30">
         <div className="min-h-full flex flex-col justify-center py-12 px-6 sm:px-12 lg:px-24">
-          
+
           <div className="w-full max-w-2xl mx-auto">
             {/* Mobile Header (Hidden on Desktop) */}
             <div className="md:hidden flex items-center gap-3 mb-10 justify-center">
@@ -118,20 +118,20 @@ export default function SubscribePage() {
             </div>
 
             <form className="space-y-8 bg-white p-8 sm:p-10 rounded-[2rem] shadow-sm border border-gray-100" onSubmit={(e) => e.preventDefault()}>
-              
+
               {/* Basic Info Section */}
               <div className="space-y-6">
                 <h3 className="text-lg font-black text-[#001c56] border-b border-gray-100 pb-3 flex items-center gap-2">
                   <User className="text-[var(--primary)]" size={20} /> البيانات الأساسية
                 </h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-700 block text-right">اسم السنتر أو الأكاديمية</label>
                     <div className="relative">
-                      <input 
-                        type="text" 
-                        placeholder="أكاديمية المعرفة" 
+                      <input
+                        type="text"
+                        placeholder="أكاديمية المعرفة"
                         className="w-full h-12 rounded-xl border border-gray-200 bg-gray-50 pr-4 pl-10 text-sm font-bold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#001c56]/20 focus:border-[#001c56] transition-all placeholder:text-gray-400 placeholder:font-medium"
                       />
                     </div>
@@ -140,9 +140,9 @@ export default function SubscribePage() {
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-700 block text-right">اسم المدير / المسؤول</label>
                     <div className="relative">
-                      <input 
-                        type="text" 
-                        placeholder="أحمد محمد" 
+                      <input
+                        type="text"
+                        placeholder="أحمد محمد"
                         className="w-full h-12 rounded-xl border border-gray-200 bg-gray-50 pr-4 pl-10 text-sm font-bold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#001c56]/20 focus:border-[#001c56] transition-all placeholder:text-gray-400 placeholder:font-medium"
                       />
                     </div>
@@ -154,9 +154,9 @@ export default function SubscribePage() {
                     <label className="text-sm font-bold text-gray-700 block text-right">رقم الهاتف الأساسي</label>
                     <div className="flex gap-2" dir="ltr">
                       <div className="relative flex-1">
-                        <input 
-                          type="text" 
-                          placeholder="100 123 4567" 
+                        <input
+                          type="text"
+                          placeholder="100 123 4567"
                           className="w-full h-12 rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm font-bold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#001c56]/20 focus:border-[#001c56] transition-all placeholder:text-gray-400 placeholder:font-medium text-left"
                         />
                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -194,21 +194,19 @@ export default function SubscribePage() {
                   </h3>
                   <span className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full font-bold">يمكنك اختيار أكثر من مادة</span>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {subjects.map(subject => (
-                    <div 
-                      key={subject.id} 
+                    <div
+                      key={subject.id}
                       onClick={() => toggleSubject(subject.id)}
-                      className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                        selectedSubjects.includes(subject.id) 
-                          ? 'border-[#001c56] bg-blue-50/40 shadow-sm' 
+                      className={`flex items-start gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedSubjects.includes(subject.id)
+                          ? 'border-[#001c56] bg-blue-50/40 shadow-sm'
                           : 'border-gray-100 bg-white hover:border-blue-200 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
-                      <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center shrink-0 border-2 transition-colors ${
-                        selectedSubjects.includes(subject.id) ? 'bg-[#001c56] border-[#001c56]' : 'border-gray-300 bg-white'
-                      }`}>
+                      <div className={`mt-0.5 w-5 h-5 rounded-md flex items-center justify-center shrink-0 border-2 transition-colors ${selectedSubjects.includes(subject.id) ? 'bg-[#001c56] border-[#001c56]' : 'border-gray-300 bg-white'
+                        }`}>
                         {selectedSubjects.includes(subject.id) && <Check size={14} className="text-white" />}
                       </div>
                       <div className="flex-1">
@@ -232,17 +230,16 @@ export default function SubscribePage() {
                 <h3 className="text-lg font-black text-[#001c56] border-b border-gray-100 pb-3 flex items-center gap-2">
                   <CreditCard className="text-[var(--primary)]" size={20} /> طريقة الدفع المفضلة
                 </h3>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {paymentMethods.map(method => (
-                    <div 
-                      key={method.id} 
+                    <div
+                      key={method.id}
                       onClick={() => setPaymentMethod(method.id)}
-                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all text-center ${
-                        paymentMethod === method.id 
-                          ? 'border-[#001c56] bg-blue-50/40 shadow-sm text-[#001c56]' 
+                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all text-center ${paymentMethod === method.id
+                          ? 'border-[#001c56] bg-blue-50/40 shadow-sm text-[#001c56]'
                           : 'border-gray-100 bg-white hover:border-blue-200 text-gray-500 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <div className={`${paymentMethod === method.id ? 'text-[#001c56]' : 'text-gray-400'}`}>
                         {method.icon}
@@ -259,7 +256,7 @@ export default function SubscribePage() {
               {/* Actions */}
               <div className="pt-8 mt-8 border-t border-gray-100 flex flex-col sm:flex-row items-center gap-4 justify-between">
                 <p className="text-xs text-gray-400 font-medium text-center sm:text-right w-full sm:w-auto">
-                  بالضغط على إتمام التسجيل، أنت توافق على <Link href="#" className="text-blue-500 hover:underline">شروط الاستخدام</Link>.
+                  بالضغط على إتمام التسجيل، أنت توافق على <Link href="/terms" className="text-blue-500 hover:underline">شروط الاستخدام</Link>.
                 </p>
                 <Button onClick={() => setShowModal(true)} className="w-full sm:w-auto h-14 px-10 rounded-xl bg-[#001c56] hover:bg-[#001033] text-white font-black text-lg shadow-xl shadow-blue-900/20">
                   إتمام التسجيل الآن
@@ -267,7 +264,7 @@ export default function SubscribePage() {
               </div>
 
             </form>
-            
+
             <p className="text-center text-gray-500 font-medium mt-8 mb-12">
               لديك حساب بالفعل؟ <Link href="/login" className="text-[#001c56] font-bold hover:underline">تسجيل الدخول</Link>
             </p>
@@ -280,7 +277,7 @@ export default function SubscribePage() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" dir="rtl">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-            
+
             {/* Modal Header */}
             <div className="bg-blue-50/50 p-6 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-xl font-black text-[#001c56] mx-auto">تأكيد الدفع النهائي</h2>
@@ -291,13 +288,13 @@ export default function SubscribePage() {
 
             {/* Modal Body */}
             <div className="p-6 sm:p-8 overflow-y-auto">
-              
+
               {/* Fee Summary */}
               <div className="bg-white border border-blue-100 rounded-2xl p-6 shadow-sm mb-6">
                 <h3 className="font-bold text-[#001c56] mb-4 flex items-center gap-2">
                   <FileText size={20} className="text-blue-600" /> ملخص الرسوم
                 </h3>
-                
+
                 <div className="space-y-4 mb-4">
                   {selectedSubjectsData.map(sub => (
                     <div key={sub.id} className="flex justify-between items-center text-sm">
@@ -340,9 +337,9 @@ export default function SubscribePage() {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700 block text-right">رقم إيصال الخزينة (اختياري)</label>
                 <div className="relative">
-                  <input 
-                    type="text" 
-                    placeholder="أدخل رقم الإيصال إن وجد" 
+                  <input
+                    type="text"
+                    placeholder="أدخل رقم الإيصال إن وجد"
                     className="w-full h-12 rounded-xl border border-gray-200 bg-white pr-4 pl-10 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#001c56]/20 focus:border-[#001c56] transition-all placeholder:text-gray-400"
                   />
                   <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -370,16 +367,16 @@ export default function SubscribePage() {
       {isSuccess && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" dir="rtl">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-10 text-center animate-in fade-in zoom-in duration-300">
-            
+
             <div className="w-24 h-24 bg-blue-50 text-[#001c56] rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border-[6px] border-blue-100/50">
               <Check size={40} className="stroke-[3]" />
             </div>
-            
+
             <h2 className="text-3xl font-black text-[#001c56] mb-4">تم استلام طلبك بنجاح</h2>
             <p className="text-gray-500 font-medium leading-relaxed mb-10 text-lg">
               شكراً لثقتك بنا. قام فريقنا باستلام بيانات السنتر الخاص بك، وسنقوم بالتواصل معك عبر الواتساب لتفعيل حسابك خلال ساعات العمل الرسمية.
             </p>
-            
+
             <Link href="/">
               <Button variant="outline" className="h-14 px-10 rounded-xl font-bold text-lg text-[#001c56] border-gray-200 hover:bg-gray-50 shadow-sm w-full max-w-[200px] mx-auto">
                 العودة للرئيسية

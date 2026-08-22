@@ -51,7 +51,7 @@ export default function LoginPage() {
       
       <div className="mt-8 text-center text-sm text-gray-600 font-medium">
         ليس لديك حساب؟{" "}
-        <Link href="#" className="text-[var(--primary)] font-bold hover:underline">
+        <Link href="/subscribe" className="text-[var(--primary)] font-bold hover:underline">
           إنشاء حساب
         </Link>
       </div>
