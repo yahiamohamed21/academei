@@ -29,7 +29,7 @@ const navItems = [
   { href: "/settings", label: "الإعدادات", icon: Settings },
 ];
 
-export function Sidebar() {
+export function TeacherSidebar() {
   const pathname = usePathname();
 
   return (
