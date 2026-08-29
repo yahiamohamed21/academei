@@ -4,10 +4,20 @@ import React, { useState, useRef, useEffect } from "react";
 import { Search, Bell, Settings, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 export function TeacherTopbar() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/dashboard?q=${encodeURIComponent(searchQuery)}`);
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -30,18 +40,20 @@ export function TeacherTopbar() {
     <header className="h-20 bg-[var(--background)] flex items-center justify-between px-8 sticky top-0 z-40">
       
       {/* Search */}
-      <div className="flex-1 max-w-xl">
+      <form onSubmit={handleSearch} className="flex-1 max-w-xl">
         <div className="relative group">
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-focus-within:text-[var(--primary)] transition-colors">
+          <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[var(--primary)] group-focus-within:text-[var(--primary)] transition-colors">
             <Search size={18} />
-          </div>
+          </button>
           <input 
             type="text" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="ابحث عن طالب، دورة، أو معاملة"
             className="w-full h-12 rounded-full border border-gray-200 bg-white pr-12 pl-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all shadow-sm"
           />
         </div>
-      </div>
+      </form>
 
       {/* Actions & Profile */}
       <div className="flex items-center gap-4 mr-8">

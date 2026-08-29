@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,9 @@ import {
   GraduationCap, 
   Settings,
   HelpCircle,
-  Plus
+  Plus,
+  LogOut,
+  BookOpen
 } from "lucide-react";
 
 const navItems = [
@@ -26,14 +28,17 @@ const navItems = [
   { href: "/finance", label: "المالية", icon: Wallet },
   { href: "/reports", label: "التقارير", icon: BarChart3 },
   { href: "/team", label: "فريق التدريس", icon: GraduationCap },
+  { href: "/e-learning", label: "التعليم الإلكتروني", icon: BookOpen },
   { href: "/settings", label: "الإعدادات", icon: Settings },
 ];
 
 export function TeacherSidebar() {
   const pathname = usePathname();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   return (
-    <aside className="w-64 bg-white border-l border-gray-100 flex flex-col h-screen sticky top-0 shadow-[0_0_15px_rgba(0,0,0,0.03)]">
+    <>
+      <aside className="w-64 bg-white border-l border-gray-100 flex flex-col h-screen sticky top-0 shadow-[0_0_15px_rgba(0,0,0,0.03)] z-40">
       {/* Logo */}
       <div className="h-20 flex items-center justify-center border-b border-gray-50 px-6">
         <Link href="/dashboard" className="flex items-center gap-3">
@@ -94,7 +99,45 @@ export function TeacherSidebar() {
           <HelpCircle size={18} className="text-gray-400" />
           المساعدة
         </Link>
+        <button 
+          onClick={() => setIsLogoutModalOpen(true)}
+          className="flex items-center justify-center gap-2 w-full h-12 text-sm font-bold text-gray-700 bg-white border border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-xl transition-all"
+        >
+          <LogOut size={18} className="rtl:-scale-x-100" />
+          تسجيل الخروج
+        </button>
       </div>
     </aside>
+
+    {/* Logout Modal */}
+    {isLogoutModalOpen && (
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center animate-in fade-in duration-200 p-4">
+        <div className="bg-white rounded-[32px] p-8 max-w-[400px] w-full shadow-2xl text-center animate-in zoom-in-95 duration-200">
+          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <LogOut size={32} className="text-slate-800 rtl:-scale-x-100" strokeWidth={2.5} />
+          </div>
+          
+          <h2 className="text-2xl font-extrabold text-slate-900 mb-2">تسجيل الخروج</h2>
+          <p className="text-slate-500 font-medium mb-8">هل أنت متأكد من رغبتك في تسجيل الخروج من النظام؟</p>
+          
+          <div className="flex gap-4">
+            <button 
+              onClick={() => setIsLogoutModalOpen(false)}
+              className="flex-1 h-14 bg-white border-2 border-red-100 text-red-600 font-bold rounded-2xl hover:bg-red-50 flex items-center justify-center gap-2 transition-colors"
+            >
+              <LogOut size={20} className="rtl:-scale-x-100" />
+              تسجيل الخروج
+            </button>
+            <button 
+              onClick={() => setIsLogoutModalOpen(false)}
+              className="flex-1 h-14 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition-colors"
+            >
+              إلغاء
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
