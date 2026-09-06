@@ -12,41 +12,34 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "@/lib/hooks/use-auth";
+import { useTeachers } from "@/lib/hooks/use-teachers";
 
-const teachersData = [
-  {
-    id: 1,
-    name: "أ. أحمد منصور",
-    subject: "الفيزياء",
-    groupsCount: 5,
-    studentsCount: 20,
-    activityRate: 94,
-    rank: 1,
-    rating: 5,
-    avatar: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?q=80&w=200&auto=format&fit=crop"
-  },
-  {
-    id: 2,
-    name: "أ. سارة خالد",
-    subject: "الرياضيات",
-    groupsCount: 20,
-    studentsCount: 95,
-    activityRate: 88,
-    rank: 4,
-    rating: 4,
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop"
-  }
-];
-
-const filterOptions = {
-  subject: ["الأحياء", "اللغة الانجليزية", "اللغة الفرنسية", "الكيمياء"],
-  status: ["نشط ومستمر", "موقوف مؤقتاً (إدارياً)", "موقوف لعدم سداد المصروفات", "متخرج / أكمل الكورسات"],
-  group: ["مجموعة الفيزياء A", "مجموعة الكيمياء C", "مجموعة الرياضيات D", "مجموعة الأحياء A"]
-};
+import { useSubjects } from "@/lib/hooks/use-subjects";
+import { useBranches } from "@/lib/hooks/use-branches";
 
 export default function TeamPage() {
+  const { data: session } = useSession();
+  const tenantId = session?.selectedTenantId || undefined;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+  const { data: teachersPage, isLoading, isError } = useTeachers({
+    tenantId,
+    search: searchQuery,
+    page: 1,
+    pageSize: 50
+  });
+
+  const { data: subjectsPage } = useSubjects(tenantId);
+  const { data: branches = [] } = useBranches(tenantId);
+
+  const filterOptions = {
+    subject: subjectsPage?.items?.map(s => s.name) || [],
+    status: ["نشط", "غير نشط"],
+    branch: branches.map(b => b.name)
+  };
 
   // Subject filter
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
@@ -146,10 +139,17 @@ export default function TeamPage() {
     );
   };
 
-  const filteredTeachers = teachersData.filter(teacher => {
-    const matchesSearch = teacher.name.includes(searchQuery) || teacher.subject.includes(searchQuery);
-    const matchesSubject = selectedSubjects.length === 0 || selectedSubjects.includes(teacher.subject);
-    return matchesSearch && matchesSubject;
+  const teachersData = teachersPage?.items || [];
+  
+  const filteredTeachers = teachersData.filter((teacher: any) => {
+    if (searchQuery && !teacher.fullName?.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
+    }
+    if (selectedStatuses.length > 0) {
+      const statusText = teacher.status === 1 ? "نشط" : "غير نشط";
+      if (!selectedStatuses.includes(statusText)) return false;
+    }
+    return true;
   });
 
   return (
@@ -157,7 +157,7 @@ export default function TeamPage() {
       
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#001c56] mb-2 text-center md:text-right">إدارة فريق التدريس</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-[#001c56] mb-2 text-center md:text-right">إدارة فريق التدريس</h1>
       </div>
 
       {/* Top Stats Cards */}
@@ -167,7 +167,7 @@ export default function TeamPage() {
         <div className="bg-[#f8fafc] rounded-[32px] p-6 text-center shadow-sm border border-gray-50 flex flex-col justify-center items-center">
           <h3 className="text-gray-500 font-bold text-sm mb-2">إجمالي المدرسين</h3>
           <div className="flex items-end gap-2 mb-1 justify-center">
-            <div className="text-3xl font-extrabold text-[#001c56]">24</div>
+            <div className="text-3xl font-extrabold text-[#001c56]">{teachersPage?.totalCount || 0}</div>
           </div>
           <div className="text-[10px] text-gray-400 font-bold">96% تفاعل</div>
         </div>
@@ -176,7 +176,7 @@ export default function TeamPage() {
         <div className="bg-[#f8fafc] rounded-[32px] p-6 text-center shadow-sm border border-gray-50 flex flex-col justify-center items-center">
           <h3 className="text-gray-500 font-bold text-sm mb-2">المدرسون النشطون</h3>
           <div className="flex items-center gap-2 mb-1 justify-center">
-            <div className="text-3xl font-extrabold text-[#001c56]">22</div>
+            <div className="text-3xl font-extrabold text-[#001c56]">{teachersPage?.totalCount || 0}</div>
           </div>
           <div className="bg-green-50 text-green-600 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
             <ArrowUpRight size={12} />
@@ -236,14 +236,14 @@ export default function TeamPage() {
             placeholder="اكتب اسم الحالة"
           />
           <MultiSelectDropdown 
-            name="group" 
-            label="المجموعة (الكل)" 
-            options={filterOptions.group} 
+            name="branch" 
+            label="الفرع (الكل)" 
+            options={filterOptions.branch} 
             selectedList={selectedGroups} 
             setSelectedList={setSelectedGroups} 
             searchQuery={groupSearchQuery} 
             setSearchQuery={setGroupSearchQuery}
-            placeholder="اكتب اسم المجموعة"
+            placeholder="اكتب اسم الفرع"
           />
         </div>
 
@@ -251,22 +251,26 @@ export default function TeamPage() {
 
       {/* Teachers List */}
       <div className="space-y-4 mb-8">
-        {filteredTeachers.length > 0 ? (
-          filteredTeachers.map((teacher) => (
+        {isLoading ? (
+          <div className="text-center py-12 text-gray-500 font-medium">جاري التحميل...</div>
+        ) : isError ? (
+          <div className="text-center py-12 text-red-500 font-medium">حدث خطأ أثناء جلب البيانات</div>
+        ) : filteredTeachers.length > 0 ? (
+          filteredTeachers.map((teacher: any) => (
           <div key={teacher.id} className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 flex flex-col xl:flex-row items-center gap-6 xl:gap-4 transition-all hover:shadow-md">
             
             {/* Teacher Info */}
             <div className="flex items-center gap-4 w-full xl:w-auto xl:min-w-[220px] justify-end xl:justify-start">
               <div className="text-right flex-1 xl:flex-none">
-                <h3 className="text-base font-bold text-[#001c56] mb-0.5">{teacher.name}</h3>
+                <h3 className="text-base font-bold text-[#001c56] mb-0.5">{teacher.fullName}</h3>
                 <span className="bg-gray-100 text-gray-500 text-[10px] font-bold px-3 py-1 rounded-full inline-block">
-                  {teacher.subject}
+                  {teacher.subjectIds?.length > 0 ? `${teacher.subjectIds.length} مواد` : "لا يوجد"}
                 </span>
               </div>
               <div className="w-14 h-14 bg-gray-100 rounded-full overflow-hidden shrink-0 border-2 border-white shadow-sm">
                 <Image 
-                  src={teacher.avatar}
-                  alt={teacher.name}
+                  src={teacher.photoUrl || "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?q=80&w=200&auto=format&fit=crop"}
+                  alt={teacher.fullName || "Teacher"}
                   width={56}
                   height={56}
                   className="w-full h-full object-cover"
@@ -279,33 +283,31 @@ export default function TeamPage() {
               
               <div className="text-center bg-[#f8fafc] px-4 py-3 rounded-[20px] border border-gray-50 col-span-1">
                 <p className="text-[10px] text-gray-500 font-bold mb-1 flex items-center justify-center gap-1">
-                  عدد المجموعات
+                  الحالة
                 </p>
-                <p className="text-xl font-extrabold text-[#001c56]">{teacher.groupsCount}</p>
+                <p className="text-sm font-extrabold text-[#001c56]">{teacher.status === 1 ? 'نشط' : 'غير نشط'}</p>
               </div>
 
               <div className="text-center bg-[#f8fafc] px-4 py-3 rounded-[20px] border border-gray-50 col-span-1">
                 <p className="text-[10px] text-gray-500 font-bold mb-1 flex items-center justify-center gap-1">
-                  <Users2 size={12} className="text-gray-400" /> عدد الطلاب
+                  <Users2 size={12} className="text-gray-400" /> الفروع
                 </p>
-                <p className="text-xl font-extrabold text-[#001c56]">{teacher.studentsCount}</p>
+                <p className="text-sm font-extrabold text-[#001c56]">{teacher.branchIds?.length || 0}</p>
               </div>
 
               <div className="text-right bg-[#f8fafc] px-6 py-3 rounded-[20px] border border-gray-50 col-span-2 xl:flex-1 xl:max-w-[280px]">
                 <div className="flex justify-between items-center mb-2 text-[10px] font-bold text-[#001c56]">
-                  <span>{teacher.activityRate}%</span>
-                  <span className="text-gray-500">نسبة النشاط</span>
+                  <span>رقم الهاتف</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2 flex justify-end">
-                  <div className="bg-[#001c56] h-2 rounded-full" style={{ width: `${teacher.activityRate}%` }}></div>
+                <div className="w-full text-right font-bold text-sm text-gray-600">
+                  {teacher.phoneNumber || "غير متوفر"}
                 </div>
               </div>
 
               <div className="text-center flex flex-col items-center justify-center col-span-2 md:col-span-4 xl:col-span-1 xl:min-w-[100px] mt-2 xl:mt-0">
-                <div className="flex items-center gap-1 mb-1.5 flex-row-reverse">
-                  {renderStars(teacher.rating)}
-                </div>
-                <p className="text-[10px] text-gray-500 font-bold bg-gray-50 px-3 py-1 rounded-full">المرتبة #{teacher.rank}</p>
+                <p className="text-[10px] text-gray-500 font-bold bg-gray-50 px-3 py-1 rounded-full">
+                  معلم
+                </p>
               </div>
 
             </div>
@@ -320,15 +322,43 @@ export default function TeamPage() {
           </div>
         ))
         ) : (
-          <div className="text-center py-12 bg-white rounded-[32px] border border-gray-100 shadow-sm text-gray-500 font-medium">
-            لا يوجد مدرسين يطابقون بحثك
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white rounded-[32px] border border-gray-100 shadow-sm animate-in fade-in duration-300">
+            <div className="relative w-48 h-48 md:w-56 md:h-56 mb-4">
+              <Image 
+                src="/search_result.jpeg" 
+                alt="لا توجد نتائج مطابقة لبحثك" 
+                fill 
+                className="object-contain" 
+              />
+            </div>
+
+            <h3 className="text-xl md:text-2xl font-extrabold text-[#001c56] mb-3">
+              لا توجد نتائج مطابقة لبحثك
+            </h3>
+            <p className="text-gray-400 text-sm font-medium max-w-md mx-auto mb-6 leading-relaxed">
+              يرجى التأكد من كتابة اسم المدرس بشكل صحيح أو تغيير خيارات الفلترة.
+            </p>
+
+            {(searchQuery || selectedSubjects.length > 0 || selectedStatuses.length > 0 || selectedGroups.length > 0) && (
+              <button 
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedSubjects([]);
+                  setSelectedStatuses([]);
+                  setSelectedGroups([]);
+                }}
+                className="px-6 py-2.5 bg-[#001c56] hover:bg-[#001440] text-white rounded-full text-xs font-bold transition-all shadow-sm"
+              >
+                إعادة ضبط البحث والفلاتر
+              </button>
+            )}
           </div>
         )}
       </div>
 
       {/* Pagination */}
       <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 pt-6 gap-4">
-        <p className="text-[11px] text-gray-400 font-bold order-2 sm:order-1">عرض 1-4 من 42 مدرس</p>
+        <p className="text-[11px] text-gray-400 font-bold order-2 sm:order-1">عرض {(teachersPage?.page || 1)} من {Math.max(1, Math.ceil(Number(teachersPage?.totalCount || 0) / Number(teachersPage?.pageSize || 50)))} صفحات</p>
         
         <div className="flex items-center gap-1 flex-row-reverse order-1 sm:order-2">
           <button className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 bg-white transition-colors">

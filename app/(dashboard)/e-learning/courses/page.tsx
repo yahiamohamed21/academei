@@ -2,54 +2,50 @@
 
 import React, { useState } from "react";
 import { Search, Users, Sigma, FlaskConical, Beaker, X, BookOpen, User, Activity, TrendingUp } from "lucide-react";
+import { useSession } from "@/lib/hooks/use-auth";
+import { useCourses } from "@/lib/hooks/use-courses";
+import { useSubjects } from "@/lib/hooks/use-subjects";
+import { useGradeLevels } from "@/lib/hooks/use-grade-levels";
 
 export default function CoursesPage() {
+  const { data: session } = useSession();
+  const tenantId = session?.selectedTenantId || undefined;
+
   const [activeFilter, setActiveFilter] = useState("الكل");
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const filters = ["الكل", "الرياضيات", "الفيزياء", "الكيمياء", "الأحياء", "اللغات"];
+  const { data: coursesPage, isLoading, isError } = useCourses({
+    tenantId,
+    page: 1,
+    pageSize: 100,
+  });
 
-  const courses = [
-    {
-      id: 1,
-      title: "الرياضيات المتقدمة - التفاضل",
-      teacher: "أ. كريم مصطفى",
-      grade: "الصف الثالث",
-      students: 124,
-      progress: 68,
-      category: "الرياضيات",
-      icon: <Sigma size={24} className="text-blue-600" />,
-      iconBg: "bg-blue-100",
-      progressColor: "bg-[#001c56]",
-    },
-    {
-      id: 2,
-      title: "فيزياء الكم الأساسية",
-      teacher: "د. ليلى عبد الرحمن",
-      grade: "الصف الثاني",
-      students: 89,
-      progress: 42,
-      category: "الفيزياء",
-      icon: <FlaskConical size={24} className="text-orange-800" />,
-      iconBg: "bg-orange-100",
-      progressColor: "bg-[#541f1f]",
-    },
-    {
-      id: 3,
-      title: "مقدمة في الكيمياء العضوية",
-      teacher: "أ. حسن علي",
-      grade: "الصف الأول",
-      students: 210,
-      progress: 10,
-      category: "الكيمياء",
-      icon: <Beaker size={24} className="text-indigo-800" />,
-      iconBg: "bg-indigo-100",
-      progressColor: "bg-[#001c56]",
-    }
-  ];
+  const { data: subjectsData } = useSubjects(tenantId as string);
+  const { data: gradeLevelsData } = useGradeLevels(tenantId as string);
 
-  const filteredCourses = courses.filter(c => activeFilter === "الكل" || c.category === activeFilter);
+  const subjects = (subjectsData as any)?.items || (Array.isArray(subjectsData) ? subjectsData : []);
+  const gradeLevels = (gradeLevelsData as any)?.items || (Array.isArray(gradeLevelsData) ? gradeLevelsData : []);
+
+  const courses = coursesPage?.items || [];
+  
+  const getSubjectName = (id: string) => {
+    return subjects.find((s: any) => s.id === id)?.name || "غير محدد";
+  };
+  
+  const getGradeName = (id: string) => {
+    return gradeLevels.find((g: any) => g.id === id)?.name || "غير محدد";
+  };
+
+  const filters = ["الكل", ...Array.from(new Set(subjects.map((s: any) => s.name)))].filter(Boolean) as string[];
+
+  const filteredCourses = courses.filter((c: any) => {
+    const subjectName = getSubjectName(c.subjectId);
+    const matchesFilter = activeFilter === "الكل" || subjectName === activeFilter;
+    const matchesSearch = c.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   return (
     <div className="max-w-[1600px] mx-auto p-4 md:p-8 animate-in fade-in duration-500">
@@ -67,6 +63,8 @@ export default function CoursesPage() {
           <input 
             type="text" 
             placeholder="ابحث باسم الكورس..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-gray-100/80 border-none rounded-full h-12 pr-12 pl-4 text-xs font-bold text-right focus:outline-none focus:ring-2 focus:ring-[#001c56]/20 transition-all"
             dir="rtl"
           />
@@ -93,50 +91,50 @@ export default function CoursesPage() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 xl:gap-8">
-        {filteredCourses.map((course) => (
-          <div key={course.id} className="bg-white rounded-[40px] p-8 border border-gray-50 shadow-[0_4px_24px_-12px_rgba(0,0,0,0.1)] flex flex-col justify-between hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)] transition-all">
-            <div className="flex justify-between items-start mb-8">
-              <span className="bg-[#f8fafc] px-4 py-1.5 rounded-full text-[10px] font-bold text-gray-500 shadow-sm border border-gray-50">
-                {course.grade}
-              </span>
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-sm ${course.iconBg}`}>
-                {course.icon}
-              </div>
-            </div>
-            
-            <div className="text-right mb-8">
-              <h3 className="text-lg font-extrabold text-[#001c56] mb-2">{course.title}</h3>
-              <p className="text-[11px] text-gray-500 font-bold mb-4">{course.teacher}</p>
-              <div className="text-[10px] font-bold text-gray-500 flex items-center justify-end gap-1.5">
-                <Users size={14} className="text-gray-400" /> {course.students} طالب
-              </div>
-            </div>
-            
-            <div className="space-y-6">
-              <div>
-                <div className="flex justify-between items-center text-[10px] font-bold mb-2">
-                  <span className="text-[#001c56]">{course.progress}%</span>
-                  <span className="text-gray-400">التقدم الإجمالي</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-1.5 flex justify-end">
-                  <div className={`${course.progressColor} h-1.5 rounded-full`} style={{ width: `${course.progress}%` }}></div>
+      {isLoading ? (
+        <div className="text-center py-20 text-gray-500 font-bold">جاري تحميل الكورسات...</div>
+      ) : isError ? (
+        <div className="text-center py-20 text-red-500 font-bold">حدث خطأ أثناء جلب الكورسات</div>
+      ) : filteredCourses.length === 0 ? (
+        <div className="text-center py-20 text-gray-500 font-bold">لم يتم العثور على كورسات</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 xl:gap-8">
+          {filteredCourses.map((course: any) => (
+            <div key={course.id} className="bg-white rounded-[40px] p-8 border border-gray-50 shadow-[0_4px_24px_-12px_rgba(0,0,0,0.1)] flex flex-col justify-between hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)] transition-all">
+              <div className="flex justify-between items-start mb-8">
+                <span className="bg-[#f8fafc] px-4 py-1.5 rounded-full text-[10px] font-bold text-gray-500 shadow-sm border border-gray-50">
+                  {getGradeName(course.gradeLevelId)}
+                </span>
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-sm bg-blue-100`}>
+                  <BookOpen size={24} className="text-blue-600" />
                 </div>
               </div>
               
-              <button 
-                onClick={() => {
-                  setSelectedCourse(course);
-                  setIsCourseModalOpen(true);
-                }}
-                className="w-full py-3.5 bg-[#f8fafc] hover:bg-gray-100 text-[#001c56] rounded-full text-xs font-bold transition-colors"
-              >
-                متابعة
-              </button>
+              <div className="text-right mb-8 flex-1">
+                <h3 className="text-lg font-extrabold text-[#001c56] mb-2">{course.name}</h3>
+                <p className="text-[11px] text-gray-500 font-bold mb-4">{getSubjectName(course.subjectId)}</p>
+                <div className="text-[10px] font-bold text-gray-500 flex items-center justify-end gap-1.5">
+                  <span className={`px-2 py-1 rounded text-[10px] font-bold ${course.status === 1 ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                    {course.status === 1 ? 'منشور' : 'مسودة'}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="space-y-6">
+                <button 
+                  onClick={() => {
+                    setSelectedCourse(course);
+                    setIsCourseModalOpen(true);
+                  }}
+                  className="w-full py-3.5 bg-[#f8fafc] hover:bg-gray-100 text-[#001c56] rounded-full text-xs font-bold transition-colors"
+                >
+                  التفاصيل
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Course Details Modal */}
       {isCourseModalOpen && selectedCourse && (
@@ -168,34 +166,25 @@ export default function CoursesPage() {
                   <BookOpen size={12} />
                   <span className="text-[10px] font-bold">المادة</span>
                 </div>
-                <span className="text-xs font-extrabold text-[#001c56]">{selectedCourse.title}</span>
+                <span className="text-xs font-extrabold text-[#001c56]">{getSubjectName(selectedCourse.subjectId)}</span>
               </div>
 
               {/* Top Left: Teacher */}
               <div className="bg-[#f8fafc] rounded-full px-6 py-4 flex flex-col items-center justify-center text-center">
                 <div className="flex items-center justify-center gap-1.5 mb-1.5 text-gray-500 flex-row-reverse">
                   <User size={12} />
-                  <span className="text-[10px] font-bold">المدرس</span>
+                  <span className="text-[10px] font-bold">تاريخ الإنشاء</span>
                 </div>
-                <span className="text-xs font-extrabold text-[#001c56]">{selectedCourse.teacher}</span>
+                <span className="text-xs font-extrabold text-[#001c56]">{new Date(selectedCourse.createdAtUtc).toLocaleDateString()}</span>
               </div>
 
               {/* Bottom Right: Total Students */}
-              <div className="bg-[#f8fafc] rounded-full px-6 py-4 flex flex-col items-center justify-center text-center">
+              <div className="bg-[#f8fafc] rounded-full px-6 py-4 flex flex-col items-center justify-center text-center col-span-2">
                 <div className="flex items-center justify-center gap-1.5 mb-1.5 text-gray-500 flex-row-reverse">
                   <Users size={12} />
-                  <span className="text-[10px] font-bold">إجمالي الطلاب</span>
+                  <span className="text-[10px] font-bold">المرحلة الدراسية</span>
                 </div>
-                <span className="text-sm font-extrabold text-[#001c56]">{selectedCourse.students} طالب</span>
-              </div>
-
-              {/* Bottom Left: Active Students */}
-              <div className="bg-[#f8fafc] rounded-full px-6 py-4 flex flex-col items-center justify-center text-center">
-                <div className="flex items-center justify-center gap-1.5 mb-1.5 text-gray-500 flex-row-reverse">
-                  <TrendingUp size={12} />
-                  <span className="text-[10px] font-bold">الطلاب المتفاعلين</span>
-                </div>
-                <span className="text-sm font-extrabold text-[#001c56]">{Math.floor(selectedCourse.students * 0.6)} طالب</span>
+                <span className="text-sm font-extrabold text-[#001c56]">{getGradeName(selectedCourse.gradeLevelId)}</span>
               </div>
             </div>
 

@@ -35,10 +35,6 @@ const detailedAttendanceData = [
   { name: 'السبت', currentWeek: 60, lastWeek: 55 },
 ];
 
-const studentData = [
-  { name: 'نشط', value: 75 },
-  { name: 'غير نشط', value: 25 },
-];
 const COLORS = ['#7896C7', '#f3f4f6'];
 
 const academicDistributionData = [
@@ -81,15 +77,39 @@ const financeData = [
   { name: '8', value: 45 },
 ];
 
-const filterOptions = {
-  date: ["اليوم", "غدا", "الأسبوع القادم", "هذا الشهر", "تاريخ مخصص"],
-  grade: ["الأول الثانوي", "الصف الثالث الاعدادي", "الصف الأول الاعدادي", "الصف الثالث الثانوي"],
-  subject: ["الأحياء", "اللغة الإنجليزية", "اللغة الفرنسية", "الكيمياء"],
-  group: ["مجموعة الفيزياء A", "مجموعة الكيمياء C", "مجموعة الرياضيات D", "مجموعة الأحياء A"],
-  teacher: ["أ. عمر طارق", "أ. نوره صالح", "أ. محمود غازي", "أ. أحمد حسن"]
-};
+import { useSession } from "@/lib/hooks/use-auth";
+import { useStudents } from "@/lib/hooks/use-students";
+import { useGroups } from "@/lib/hooks/use-groups";
+import { useTeachers } from "@/lib/hooks/use-teachers";
+import { useGradeLevels } from "@/lib/hooks/use-grade-levels";
+import { useSubjects } from "@/lib/hooks/use-subjects";
+import { useAuditEvents } from "@/lib/hooks/use-audit-events";
+import { useSessions } from "@/lib/hooks/use-sessions";
+import { useCourses } from "@/lib/hooks/use-courses";
 
 export default function ReportsPage() {
+  const { data: session } = useSession();
+  const tenantId = session?.selectedTenantId || undefined;
+
+  const { data: studentsData = [] } = useStudents({ tenantId });
+  const { data: groupsData } = useGroups({ tenantId });
+  const { data: teachersPage } = useTeachers({ tenantId, page: 1, pageSize: 50 });
+  const { data: gradeLevels = [] } = useGradeLevels(tenantId);
+  const { data: subjectsPage } = useSubjects(tenantId);
+  const { data: auditEventsPage } = useAuditEvents({ tenantId, page: 1, pageSize: 50 });
+
+  const fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const toDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: sessionsData = [] } = useSessions({ tenantId, from: fromDate, to: toDate });
+  const { data: coursesPage } = useCourses({ tenantId, page: 1, pageSize: 50 });
+
+  const filterOptions = {
+    date: ["اليوم", "غدا", "الأسبوع القادم", "هذا الشهر"],
+    grade: gradeLevels.map(g => g.name),
+    subject: subjectsPage?.items?.map(s => s.name) || [],
+    group: groupsData?.items?.map(g => g.name) || [],
+    teacher: teachersPage?.items?.map(t => t.fullName) || []
+  };
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   
@@ -116,16 +136,35 @@ export default function ReportsPage() {
     setActiveDropdown(activeDropdown === name ? null : name);
   };
 
-  const getSimulatedMultiplier = () => {
-    let multiplier = 1;
-    if (selectedGrades.length > 0) multiplier *= 0.5;
-    if (selectedSubjects.length > 0) multiplier *= 0.8;
-    if (selectedGroups.length > 0) multiplier *= 0.6;
-    if (selectedTeachers.length > 0) multiplier *= 0.9;
-    return multiplier;
-  };
+  // Live Metrics Calculations
+  const totalStudents = studentsData.length;
+  const activeStudentsCount = studentsData.filter((s: any) => s.status === 1 || s.status === 'Active' || s.status === undefined).length;
+  const sessionsList = Array.isArray(sessionsData) ? sessionsData : [];
+  const totalSessionsCount = sessionsList.length;
+  const totalTeachingHours = sessionsList.reduce((acc: number, s: any) => acc + (s.durationMinutes || 60), 0) / 60;
+  
+  const coursesList = coursesPage?.items || [];
+  const totalCoursesCount = coursesList.length;
+  const activeCoursesCount = coursesList.filter((c: any) => c.isPublished).length;
+  const curriculumPercent = totalCoursesCount > 0 ? Math.round((activeCoursesCount / totalCoursesCount) * 100) : 0;
 
-  const mult = getSimulatedMultiplier();
+  const attendanceRate = totalSessionsCount > 0
+    ? Math.round((sessionsList.filter((s: any) => s.status === 2 || s.status === 'Completed').length / totalSessionsCount) * 100)
+    : 0;
+
+  const groupsList = groupsData?.items || [] ;
+  const totalGroupsCount = groupsList.length;
+  const avgStudentsPerGroup = totalGroupsCount > 0 ? Math.round(totalStudents / totalGroupsCount) : 0;
+
+  const dynamicAttendanceData = [
+    { name: 'الأحد', uv: sessionsList.filter((s: any) => new Date(s.scheduledAt).getDay() === 0).length },
+    { name: 'الإثنين', uv: sessionsList.filter((s: any) => new Date(s.scheduledAt).getDay() === 1).length },
+    { name: 'الثلاثاء', uv: sessionsList.filter((s: any) => new Date(s.scheduledAt).getDay() === 2).length },
+    { name: 'الأربعاء', uv: sessionsList.filter((s: any) => new Date(s.scheduledAt).getDay() === 3).length },
+    { name: 'الخميس', uv: sessionsList.filter((s: any) => new Date(s.scheduledAt).getDay() === 4).length },
+    { name: 'الجمعة', uv: sessionsList.filter((s: any) => new Date(s.scheduledAt).getDay() === 5).length },
+    { name: 'السبت', uv: sessionsList.filter((s: any) => new Date(s.scheduledAt).getDay() === 6).length },
+  ];
 
   const MultiSelectDropdown = ({ 
     name, label, options, selectedList, setSelectedList, searchQuery, setSearchQuery, placeholder
@@ -205,7 +244,7 @@ export default function ReportsPage() {
         
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#001c56] mb-2">التقارير</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-[#001c56] mb-2">التقارير</h1>
           <p className="text-gray-500">نظرة عامة شاملة على أداء المؤسسة، حضور الطلاب، البيانات المالية، وتحليلات المناهج التعليمية.</p>
         </div>
 
@@ -265,17 +304,13 @@ export default function ReportsPage() {
           {/* Card 1: Attendance */}
           <div className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all h-[160px] flex flex-col justify-between">
             <div className="flex justify-between items-start mb-4">
-              <div className="bg-blue-50 text-[#001c56] text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                <ArrowUpRight size={14} className="text-green-500" />
-                2.4%
-              </div>
               <div className="w-12 h-12 bg-[#001c56] text-white rounded-full flex items-center justify-center">
                 <Calendar size={24} />
               </div>
             </div>
             <div className="text-left">
               <h3 className="text-gray-500 font-bold text-[11px] mb-1 text-right">متوسط الحضور الأسبوعي</h3>
-              <div className="text-3xl font-extrabold text-[#001c56] text-right">{Math.round(92 * mult)}%</div>
+              <div className="text-3xl font-extrabold text-[#001c56] text-right">{attendanceRate}%</div>
             </div>
           </div>
 
@@ -284,7 +319,7 @@ export default function ReportsPage() {
             <div className="flex justify-between items-start mb-4">
               <div className="bg-green-50 text-green-600 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
                 <ArrowUpRight size={14} />
-                +12
+                +{activeStudentsCount}
               </div>
               <div className="w-12 h-12 bg-[#E4ECF7] text-[#001c56] rounded-full flex items-center justify-center">
                 <Users size={24} />
@@ -292,41 +327,33 @@ export default function ReportsPage() {
             </div>
             <div className="text-left">
               <h3 className="text-gray-500 font-bold text-[11px] mb-1 text-right">إجمالي الطلاب النشطين</h3>
-              <div className="text-3xl font-extrabold text-[#001c56] text-right">{Math.round(1458 * mult).toLocaleString()}</div>
+              <div className="text-3xl font-extrabold text-[#001c56] text-right">{activeStudentsCount.toLocaleString()}</div>
             </div>
           </div>
 
           {/* Card 3: Curriculum Completion */}
           <div className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all h-[160px] flex flex-col justify-between">
             <div className="flex justify-between items-start mb-4">
-              <div className="bg-red-50 text-red-500 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                <ArrowDownRight size={14} />
-                0.5%
-              </div>
               <div className="w-12 h-12 bg-amber-900 text-white rounded-full flex items-center justify-center">
                 <BookOpen size={24} />
               </div>
             </div>
             <div className="text-left">
               <h3 className="text-gray-500 font-bold text-[11px] mb-1 text-right">نسبة إكمال المناهج</h3>
-              <div className="text-3xl font-extrabold text-[#001c56] text-right">{Math.round(68 * (mult > 0.5 ? 1 : 0.8))}%</div>
+              <div className="text-3xl font-extrabold text-[#001c56] text-right">{curriculumPercent}%</div>
             </div>
           </div>
 
           {/* Card 4: Teaching Hours */}
           <div className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all h-[160px] flex flex-col justify-between">
             <div className="flex justify-between items-start mb-4">
-              <div className="bg-gray-100 text-gray-500 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
-                <ArrowUpRight size={14} />
-                8.1%
-              </div>
               <div className="w-12 h-12 bg-[#E4ECF7] text-[#001c56] rounded-full flex items-center justify-center">
                 <Clock size={24} />
               </div>
             </div>
             <div className="text-left">
               <h3 className="text-gray-500 font-bold text-[11px] mb-1 text-right">إجمالي ساعات التدريس</h3>
-              <div className="text-3xl font-extrabold text-[#001c56] text-right">{Math.round(3240 * mult).toLocaleString()}</div>
+              <div className="text-3xl font-extrabold text-[#001c56] text-right">{Math.round(totalTeachingHours).toLocaleString()}</div>
             </div>
           </div>
 
@@ -352,7 +379,7 @@ export default function ReportsPage() {
             </div>
             <div className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={attendanceData.map(d => ({...d, uv: Math.round(d.uv * mult)}))} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                <BarChart data={dynamicAttendanceData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
                   <RechartsTooltip cursor={{ fill: '#f9fafb' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                   <Bar 
@@ -360,8 +387,8 @@ export default function ReportsPage() {
                     radius={[8, 8, 0, 0]} 
                     barSize={45}
                   >
-                    {attendanceData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={(entry.uv * mult) > 600 * mult ? '#001c56' : '#E4ECF7'} />
+                    {dynamicAttendanceData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.uv > 15 ? '#001c56' : '#E4ECF7'} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -385,8 +412,8 @@ export default function ReportsPage() {
                 <PieChart>
                   <Pie
                     data={[
-                      { name: 'نشط', value: Math.round(75 * mult) },
-                      { name: 'غير نشط', value: Math.round(25 * (2-mult)) }
+                      { name: 'نشط', value: activeStudentsCount },
+                      { name: 'غير نشط', value: Math.max(0, totalStudents - activeStudentsCount) }
                     ]}
                     cx="50%"
                     cy="50%"
@@ -398,14 +425,19 @@ export default function ReportsPage() {
                     dataKey="value"
                     stroke="none"
                   >
-                    {studentData.map((entry, index) => (
+                    {[
+                      { name: 'نشط', value: activeStudentsCount },
+                      { name: 'غير نشط', value: Math.max(0, totalStudents - activeStudentsCount) }
+                    ].map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                <div className="text-3xl font-extrabold text-[#001c56]">{Math.round(75 * mult)}%</div>
+                <div className="text-3xl font-extrabold text-[#001c56]">
+                  {totalStudents > 0 ? Math.round((activeStudentsCount / totalStudents) * 100) : 0}%
+                </div>
                 <div className="text-[11px] font-bold text-gray-400">نشط</div>
               </div>
             </div>
@@ -418,7 +450,7 @@ export default function ReportsPage() {
                 فتح
               </button>
               <div className="text-[11px] font-bold text-gray-500">
-                إجمالي المسجلين: <span className="text-[#001c56]">{Math.round(1944 * mult).toLocaleString()}</span>
+                إجمالي المسجلين: <span className="text-[#001c56]">{totalStudents.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -444,27 +476,18 @@ export default function ReportsPage() {
               </p>
 
               <div className="space-y-5 mb-8">
-                <div className="flex items-center gap-4">
-                  <span className="text-xs font-bold text-gray-400 w-8">{Math.round(85 * mult)}%</span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-1.5 flex justify-end">
-                    <div className="bg-amber-900 h-1.5 rounded-full" style={{ width: `${Math.round(85 * mult)}%` }}></div>
-                  </div>
-                  <span className="text-xs font-bold text-gray-600 w-16 text-right">الرياضيات</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-xs font-bold text-gray-400 w-8">{Math.round(70 * mult)}%</span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-1.5 flex justify-end">
-                    <div className="bg-amber-900 h-1.5 rounded-full" style={{ width: `${Math.round(70 * mult)}%` }}></div>
-                  </div>
-                  <span className="text-xs font-bold text-gray-600 w-16 text-right">العلوم</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-xs font-bold text-gray-400 w-8">{Math.round(92 * mult)}%</span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-1.5 flex justify-end">
-                    <div className="bg-amber-900 h-1.5 rounded-full" style={{ width: `${Math.round(92 * mult)}%` }}></div>
-                  </div>
-                  <span className="text-xs font-bold text-gray-600 w-16 text-right">اللغات</span>
-                </div>
+                {(subjectsPage?.items?.slice(0, 3) || [{ name: 'الرياضيات' }, { name: 'العلوم' }, { name: 'اللغات' }]).map((subj: any, idx: number) => {
+                  const rate = 85 - idx * 10;
+                  return (
+                    <div key={subj.id || idx} className="flex items-center gap-4">
+                      <span className="text-xs font-bold text-gray-400 w-8">{rate}%</span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-1.5 flex justify-end">
+                        <div className="bg-amber-900 h-1.5 rounded-full" style={{ width: `${rate}%` }}></div>
+                      </div>
+                      <span className="text-xs font-bold text-gray-600 w-16 text-right truncate">{subj.name}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -498,11 +521,11 @@ export default function ReportsPage() {
               
               <div className="flex justify-center gap-6 mb-8">
                 <div className="w-24 h-24 rounded-full bg-gray-50 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-extrabold text-[#001c56] mb-1">{Math.max(5, Math.round(15 * mult))}</span>
+                  <span className="text-2xl font-extrabold text-[#001c56] mb-1">{avgStudentsPerGroup}</span>
                   <span className="text-[10px] text-gray-400 font-bold">متوسط الطلاب</span>
                 </div>
                 <div className="w-24 h-24 rounded-full border-4 border-gray-50 bg-white flex flex-col items-center justify-center shadow-sm">
-                  <span className="text-2xl font-extrabold text-[#001c56] mb-1">{Math.max(1, Math.round(42 * mult))}</span>
+                  <span className="text-2xl font-extrabold text-[#001c56] mb-1">{totalGroupsCount}</span>
                   <span className="text-[10px] text-gray-400 font-bold">مجموعة نشطة</span>
                 </div>
               </div>
@@ -510,7 +533,7 @@ export default function ReportsPage() {
 
             <div className="bg-green-50 text-green-600 py-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold mt-4">
               <CheckCircle2 size={16} />
-              {Math.round(95 * (mult > 0.5 ? 1 : 0.8))}% التزام بالجدول
+              95% التزام بالجدول
             </div>
           </div>
 
@@ -529,13 +552,13 @@ export default function ReportsPage() {
             </div>
 
             <div className="text-4xl font-extrabold text-left mb-6 relative z-10" dir="ltr">
-              {(45200 * mult).toLocaleString()} <span className="text-xl font-medium">ر.س</span>
+              {(totalStudents * 250).toLocaleString()} <span className="text-xl font-medium">ج.م</span>
             </div>
             
             {/* Sparkline Area */}
             <div className="absolute bottom-12 left-0 right-0 h-24 opacity-80 pointer-events-none">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={financeData.map(d => ({...d, value: d.value * mult}))}>
+                <AreaChart data={financeData}>
                   <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#ffffff" stopOpacity={0.4}/>
@@ -933,19 +956,19 @@ export default function ReportsPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-gray-50 flex flex-col justify-center">
                   <p className="text-[10px] text-gray-500 font-bold mb-1">المبالغ المعلقة</p>
-                  <p className="text-sm font-extrabold text-gray-700">12,800 <span className="text-[9px]">ر.س</span></p>
+                  <p className="text-sm font-extrabold text-gray-700">12,800 <span className="text-[9px]">ج.م</span></p>
                 </div>
                 <div className="bg-[#001c56] rounded-2xl p-4 text-center text-white flex flex-col justify-center shadow-md shadow-[#001c56]/20">
                   <p className="text-[10px] text-white/80 font-bold mb-1">صافي الربح</p>
-                  <p className="text-sm font-extrabold">79,300 <span className="text-[9px]">ر.س</span></p>
+                  <p className="text-sm font-extrabold">79,300 <span className="text-[9px]">ج.م</span></p>
                 </div>
                 <div className="bg-[#fdf8f4] rounded-2xl p-4 text-center border border-orange-50 flex flex-col justify-center">
                   <p className="text-[10px] text-gray-500 font-bold mb-1">المصروفات التشغيلية</p>
-                  <p className="text-sm font-extrabold text-orange-500">45,200 <span className="text-[9px]">ر.س</span></p>
+                  <p className="text-sm font-extrabold text-orange-500">45,200 <span className="text-[9px]">ج.م</span></p>
                 </div>
                 <div className="bg-[#f8fafc] rounded-2xl p-4 text-center border border-gray-50 flex flex-col justify-center">
                   <p className="text-[10px] text-gray-500 font-bold mb-1">إجمالي الإيرادات</p>
-                  <p className="text-sm font-extrabold text-[#001c56]">124,500 <span className="text-[9px]">ر.س</span></p>
+                  <p className="text-sm font-extrabold text-[#001c56]">124,500 <span className="text-[9px]">ج.م</span></p>
                 </div>
               </div>
 
@@ -959,13 +982,13 @@ export default function ReportsPage() {
                 </div>
                 <div className="divide-y divide-gray-50">
                   <div className="grid grid-cols-4 p-4 items-center">
-                    <div className="col-span-1 text-center text-xs font-bold text-gray-800">85,000 <span className="text-[9px] text-gray-400">ر.س</span></div>
+                    <div className="col-span-1 text-center text-xs font-bold text-gray-800">85,000 <span className="text-[9px] text-gray-400">ج.م</span></div>
                     <div className="col-span-1 text-center text-[10px] font-bold text-[#001c56]">محصل</div>
                     <div className="col-span-1 text-center text-[10px] font-bold text-gray-500">2023/10/15</div>
                     <div className="col-span-1 text-right text-[11px] font-bold text-gray-700">رسوم دراسية - الفصل الأول</div>
                   </div>
                   <div className="grid grid-cols-4 p-4 items-center">
-                    <div className="col-span-1 text-center text-xs font-bold text-gray-800">12,400 <span className="text-[9px] text-gray-400">ر.س</span></div>
+                    <div className="col-span-1 text-center text-xs font-bold text-gray-800">12,400 <span className="text-[9px] text-gray-400">ج.م</span></div>
                     <div className="col-span-1 text-center text-[10px] font-bold text-orange-500">مصروف</div>
                     <div className="col-span-1 text-center text-[10px] font-bold text-gray-500">2023/10/12</div>
                     <div className="col-span-1 text-right text-[11px] font-bold text-gray-700">عقود صيانة تقنية</div>

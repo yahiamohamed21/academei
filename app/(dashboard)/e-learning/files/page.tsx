@@ -4,7 +4,16 @@ import React, { useState, useRef } from "react";
 import { Search, ChevronDown, FileText, Video, Table, Presentation, MoreVertical, Plus, Pencil, Download, Share2, Trash2, X, FileUp, CloudUpload, File, Copy, CheckCircle2 } from "lucide-react";
 import EmptySearch from "@/components/ui/EmptySearch";
 
+import { useSession } from "@/lib/hooks/use-auth";
+import { useSubjects } from "@/lib/hooks/use-subjects";
+
 export default function SubjectFilesPage() {
+  const { data: session } = useSession();
+  const tenantId = session?.selectedTenantId || undefined;
+
+  const { data: subjectsPage } = useSubjects(tenantId);
+  const subjectsList = subjectsPage?.items?.map((s: any) => s.name) || [];
+
   const [activeFilter, setActiveFilter] = useState("الكل");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
@@ -17,7 +26,7 @@ export default function SubjectFilesPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filters = ["الكل", "الكيمياء", "الفيزياء", "الاحياء", "اللغة الأنجليزية", "الرياضيات"];
+  const filters = ["الكل", ...subjectsList];
 
   const [filesList, setFilesList] = useState([
     {
@@ -281,7 +290,7 @@ export default function SubjectFilesPage() {
 
       {/* Upload File Slide-over */}
       {isUploadModalOpen && (
-        <div className="fixed inset-0 z-50 flex justify-start bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-[450px] h-full flex flex-col shadow-2xl animate-in slide-in-from-left duration-300 rounded-r-[32px] overflow-hidden">
             
             {/* Header */}

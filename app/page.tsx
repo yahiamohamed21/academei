@@ -1,10 +1,14 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { GraduationCap, Users, BookOpen, MonitorPlay, Wallet, CheckCircle2, ChevronLeft, ArrowLeft } from "lucide-react";
+import { GraduationCap, Users, BookOpen, MonitorPlay, Wallet, CheckCircle2, ChevronLeft, ArrowLeft, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 export default function HomePage() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       
@@ -24,7 +28,7 @@ export default function HomePage() {
             <Link href="#pricing" className="hover:text-[#001c56] transition-colors">الأسعار</Link>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4">
             <Link href="/login" className="font-bold text-gray-600 hover:text-[#001c56] transition-colors text-sm">
               دخول
             </Link>
@@ -34,9 +38,34 @@ export default function HomePage() {
               </Button>
             </Link>
           </div>
-        </div>
-      </nav>
 
+          <button 
+            className="md:hidden p-2 text-gray-600"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden absolute top-20 left-0 right-0 bg-white border-b border-gray-100 p-6 flex flex-col gap-6 shadow-xl animate-in slide-in-from-top-2">
+            <div className="flex flex-col gap-4 font-bold text-gray-600 text-center">
+              <Link href="#features" onClick={() => setIsMobileMenuOpen(false)}>المميزات</Link>
+              <Link href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)}>كيف نعمل</Link>
+              <Link href="#pricing" onClick={() => setIsMobileMenuOpen(false)}>الأسعار</Link>
+            </div>
+            <div className="flex flex-col gap-3">
+              <Link href="/login" className="w-full">
+                <Button variant="outline" className="w-full h-12 rounded-xl font-bold">دخول</Button>
+              </Link>
+              <Link href="/subscribe" className="w-full">
+                <Button className="w-full bg-[#001c56] text-white h-12 rounded-xl font-bold">ابدأ مجاناً</Button>
+              </Link>
+            </div>
+          </div>
+        )}
+      </nav>
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-white">
         <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-white -z-10" />
@@ -51,11 +80,11 @@ export default function HomePage() {
               </span>
               المنصة رقم #1 لإدارة المراكز التعليمية
             </div>
-            <h1 className="text-5xl lg:text-7xl font-black text-[#001c56] leading-tight tracking-tight">
+            <h1 className="text-4xl md:text-5xl lg:text-7xl font-black text-[#001c56] leading-tight tracking-tight">
               أدر مركزك التعليمي <br/>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">باحترافية وسهولة</span>
             </h1>
-            <p className="text-lg text-gray-500 font-medium leading-relaxed max-w-xl mx-auto lg:mx-0">
+            <p className="text-base md:text-lg text-gray-500 font-medium leading-relaxed max-w-xl mx-auto lg:mx-0">
               أكاديميا هي المنصة المتكاملة لإدارة الأكاديميات ومراكز الدروس الخصوصية. تحكم في الحضور، الحسابات، والجلسات الحية من مكان واحد بكل سهولة وأمان.
             </p>
             

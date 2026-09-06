@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Bell, Settings, CheckCircle2 } from "lucide-react";
+import { Search, Bell, Settings, CheckCircle2, Menu } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
-export function TeacherTopbar() {
+export function TeacherTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -37,10 +37,16 @@ export function TeacherTopbar() {
   ];
 
   return (
-    <header className="h-20 bg-[var(--background)] flex items-center justify-between px-8 sticky top-0 z-40">
+    <header className="h-20 bg-[var(--background)] flex items-center justify-between px-4 md:px-8 sticky top-0 z-40">
       
-      {/* Search */}
-      <form onSubmit={handleSearch} className="flex-1 max-w-xl">
+      {/* Mobile Menu & Search */}
+      <div className="flex flex-1 items-center gap-4 max-w-xl">
+        {onMenuClick && (
+          <button onClick={onMenuClick} className="lg:hidden p-2 text-gray-500 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors">
+            <Menu size={24} />
+          </button>
+        )}
+        <form onSubmit={handleSearch} className="flex-1">
         <div className="relative group">
           <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[var(--primary)] group-focus-within:text-[var(--primary)] transition-colors">
             <Search size={18} />
@@ -49,14 +55,15 @@ export function TeacherTopbar() {
             type="text" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ابحث عن طالب، دورة، أو معاملة"
+            placeholder="ابحث..."
             className="w-full h-12 rounded-full border border-gray-200 bg-white pr-12 pl-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all shadow-sm"
           />
         </div>
-      </form>
+        </form>
+      </div>
 
       {/* Actions & Profile */}
-      <div className="flex items-center gap-4 mr-8">
+      <div className="flex items-center gap-2 md:gap-4 mr-2 md:mr-8">
         
         {/* Notifications Dropdown */}
         <div className="relative" ref={dropdownRef}>

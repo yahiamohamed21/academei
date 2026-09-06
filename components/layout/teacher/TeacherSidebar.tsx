@@ -17,7 +17,8 @@ import {
   HelpCircle,
   Plus,
   LogOut,
-  BookOpen
+  BookOpen,
+  X
 } from "lucide-react";
 
 const navItems = [
@@ -32,16 +33,15 @@ const navItems = [
   { href: "/settings", label: "الإعدادات", icon: Settings },
 ];
 
-export function TeacherSidebar() {
+export function TeacherSidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   return (
     <>
       <aside className="w-64 bg-white border-l border-gray-100 flex flex-col h-screen sticky top-0 shadow-[0_0_15px_rgba(0,0,0,0.03)] z-40">
-      {/* Logo */}
-      <div className="h-20 flex items-center justify-center border-b border-gray-50 px-6">
-        <Link href="/dashboard" className="flex items-center gap-3">
+      <div className="h-20 flex items-center justify-between border-b border-gray-50 px-6">
+        <Link href="/dashboard" className="flex items-center gap-3" onClick={onClose}>
           <div className="text-right">
             <h1 className="text-xl font-extrabold text-[var(--primary)] leading-tight">أكاديميا</h1>
             <p className="text-[10px] text-gray-500 font-medium">نظام الإدارة التعليمية</p>
@@ -50,6 +50,11 @@ export function TeacherSidebar() {
             <GraduationCap size={24} />
           </div>
         </Link>
+        {onClose && (
+          <button onClick={onClose} className="lg:hidden p-2 text-gray-400 hover:text-gray-600 bg-gray-50 rounded-lg">
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -60,6 +65,7 @@ export function TeacherSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={cn(
                 "flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-200 group relative",
                 isActive 

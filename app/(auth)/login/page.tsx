@@ -1,18 +1,45 @@
+"use client";
+
 import { AuthCard } from "@/components/ui/AuthCard";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { LockKeyhole, User } from "lucide-react";
 import Link from "next/link";
+import { useState, useTransition } from "react";
+import { login } from "@/lib/actions/auth";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
+  async function handleLogin(formData: FormData) {
+    setError(null);
+    startTransition(async () => {
+      const res = await login(formData);
+      if (res.success) {
+        router.push("/dashboard");
+      } else {
+        setError(res.message);
+      }
+    });
+  }
+
   return (
     <AuthCard 
       title="تسجيل الدخول" 
       description="من فضلك قم بإدخال بياناتك للاستمرار"
     >
-      <form className="space-y-5" action="/apply">
+      <form className="space-y-5" action={handleLogin}>
+        {error && (
+          <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-bold text-center">
+            {error}
+          </div>
+        )}
         <Input 
           type="text"
+          name="emailOrId"
           label="رقم الهوية / البريد الإلكتروني"
           placeholder="أدخل رقم الهوية أو البريد الإلكتروني"
           icon={<User size={20} />}
@@ -21,6 +48,7 @@ export default function LoginPage() {
         
         <Input 
           type="password"
+          name="password"
           label="كلمة المرور"
           placeholder="••••••••"
           icon={<LockKeyhole size={20} />}
@@ -44,8 +72,8 @@ export default function LoginPage() {
           </Link>
         </div>
         
-        <Button type="submit" className="w-full mt-2">
-          تسجيل الدخول
+        <Button type="submit" className="w-full mt-2" disabled={isPending}>
+          {isPending ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
         </Button>
       </form>
       

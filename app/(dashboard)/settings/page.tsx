@@ -3,9 +3,20 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Building2, User, BellRing, Monitor } from "lucide-react";
+import { Building2, User, BellRing, Monitor, BookOpen, Layers, MapPin } from "lucide-react";
+import { useSession } from "@/lib/hooks/use-auth";
+import { useBranches } from "@/lib/hooks/use-branches";
+import { useGradeLevels } from "@/lib/hooks/use-grade-levels";
+import { useSubjects } from "@/lib/hooks/use-subjects";
 
 export default function SettingsPage() {
+  const { data: session } = useSession();
+  const tenantId = session?.selectedTenantId || undefined;
+
+  const { data: branches = [], isLoading: loadingBranches } = useBranches(tenantId);
+  const { data: gradeLevels = [], isLoading: loadingGrades } = useGradeLevels(tenantId);
+  const { data: subjects = [], isLoading: loadingSubjects } = useSubjects(tenantId);
+
   const [alertsEnabled, setAlertsEnabled] = useState(true);
   const [smsEnabled, setSmsEnabled] = useState(false);
   const [whatsappEnabled, setWhatsappEnabled] = useState(true);
@@ -14,7 +25,7 @@ export default function SettingsPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       
       <div className="text-right mb-8">
-        <h1 className="text-3xl font-extrabold text-[var(--primary)] mb-2">إعدادات النظام</h1>
+        <h1 className="text-2xl md:text-3xl font-extrabold text-[var(--primary)] mb-2">إعدادات النظام</h1>
         <p className="text-gray-500 font-medium">إدارة التكوينات وتفضيلات المستخدم</p>
       </div>
 
@@ -39,8 +50,8 @@ export default function SettingsPage() {
             <h2 className="text-xl font-bold text-gray-900">معلومات الحساب</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input label="الاسم الكامل" defaultValue="أحمد محمد" />
-            <Input label="البريد الإلكتروني" type="email" defaultValue="ahmed@excellence-academy.edu" dir="ltr" className="text-left" />
+            <Input label="الاسم الكامل" defaultValue={session?.email ? session.email.split('@')[0] : "معلم TeacherOS"} />
+            <Input label="البريد الإلكتروني" type="email" defaultValue={session?.email || "user@teachos.com"} dir="ltr" className="text-left" />
           </div>
         </section>
 
@@ -125,8 +136,54 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* System Data Settings (Branches, Grade Levels, Subjects) */}
+        <section className="space-y-6">
+          <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+            <Layers className="text-[var(--primary)]" size={24} />
+            <h2 className="text-xl font-bold text-gray-900">إعدادات المنظومة التعليمية</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Branches */}
+            <div className="bg-gray-50/50 rounded-2xl p-6 border border-gray-100 text-center flex flex-col items-center">
+              <div className="w-12 h-12 bg-blue-50 text-[var(--primary)] rounded-xl flex items-center justify-center mb-4">
+                <MapPin size={24} />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">الفروع (Branches)</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                {loadingBranches ? "جاري التحميل..." : `${Array.isArray(branches) ? branches.length : (branches as any)?.totalCount || 0} فرع متاح`}
+              </p>
+              <Button variant="outline" className="w-full text-sm h-10 border-gray-200">إدارة الفروع</Button>
+            </div>
+
+            {/* Grade Levels */}
+            <div className="bg-gray-50/50 rounded-2xl p-6 border border-gray-100 text-center flex flex-col items-center">
+              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4">
+                <Layers size={24} />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">المراحل الدراسية (Grades)</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                {loadingGrades ? "جاري التحميل..." : `${Array.isArray(gradeLevels) ? gradeLevels.length : (gradeLevels as any)?.totalCount || 0} مرحلة دراسية`}
+              </p>
+              <Button variant="outline" className="w-full text-sm h-10 border-gray-200">إدارة المراحل</Button>
+            </div>
+
+            {/* Subjects */}
+            <div className="bg-gray-50/50 rounded-2xl p-6 border border-gray-100 text-center flex flex-col items-center">
+              <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center mb-4">
+                <BookOpen size={24} />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-1">المواد الدراسية (Subjects)</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                {loadingSubjects ? "جاري التحميل..." : `${Array.isArray(subjects) ? subjects.length : (subjects as any)?.totalCount || 0} مادة دراسية`}
+              </p>
+              <Button variant="outline" className="w-full text-sm h-10 border-gray-200">إدارة المواد</Button>
+            </div>
+          </div>
+        </section>
+
         {/* Action Buttons */}
-        <div className="pt-6 border-t border-gray-100 flex gap-4">
+        <div className="pt-6 border-t border-gray-100 flex flex-wrap gap-4">
           <Button className="px-8 h-12">حفظ التغييرات</Button>
           <Button variant="outline" className="px-8 h-12">الرجوع</Button>
         </div>

@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { 
-  Users, 
-  CalendarDays, 
+import {
+  Users,
+  CalendarDays,
   BookOpen,
   MessageSquare,
   Wallet,
@@ -25,22 +25,45 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
-const dummyData = [
-  { type: 'student', title: 'أحمد محمد عبدالله', idStr: 'ID: ST-2024-001', subtitle: 'الصف العاشر - شعبة ب', icon: <BookOpenCheck size={16} />, tagIcon: <GraduationCap size={14} />, tagText: 'طالب', color: 'blue', image: 'https://i.pravatar.cc/150?u=a042581f4e29026024d' },
-  { type: 'teacher', title: 'أ. أحمد حسن', idStr: 'الرياضيات', subtitle: 'ahmed.h@injaz.edu', icon: <MessageSquare size={16} />, tagIcon: <Users size={14} />, tagText: 'معلم', color: 'purple', image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=2070&auto=format&fit=crop' },
-  { type: 'session', title: 'مختبر العلوم - مجموعة أحمد', idStr: 'الثلاثاء، 10:00 صباحاً', subtitle: 'مختبر 3', icon: <CalendarDays size={16} />, tagIcon: <CalendarDays size={14} />, tagText: 'جلسة', color: 'green', iconOnly: <FlaskConical size={24} /> },
-  { type: 'document', title: 'تقرير أداء - أحمد محمد', idStr: 'تم التحديث: قبل يومين', subtitle: 'تقارير الفصل الأول', icon: <Users size={16} />, tagIcon: <FileTextIcon size={14} />, tagText: 'مستند', color: 'gray', iconOnly: <FileTextIcon size={24} /> },
-  { type: 'student', title: 'يوسف علي', idStr: 'ID: ST-2024-002', subtitle: 'الصف الأول الثانوي', icon: <BookOpenCheck size={16} />, tagIcon: <GraduationCap size={14} />, tagText: 'طالب', color: 'blue', image: 'https://i.pravatar.cc/150?u=a04258a2462d826712d' },
-  { type: 'teacher', title: 'أ. ياسر خالد', idStr: 'الفيزياء', subtitle: 'yasser@injaz.edu', icon: <MessageSquare size={16} />, tagIcon: <Users size={14} />, tagText: 'معلم', color: 'purple', image: 'https://i.pravatar.cc/150?u=a042581f4e29026024f' },
-];
+import { useSession } from "@/lib/hooks/use-auth";
+import { useStudents } from "@/lib/hooks/use-students";
+import { useGroups } from "@/lib/hooks/use-groups";
+import { useSessions } from "@/lib/hooks/use-sessions";
+import { useTeachers } from "@/lib/hooks/use-teachers";
+import { useCourses } from "@/lib/hooks/use-courses";
+import { useExams } from "@/lib/hooks/use-exams";
+import { useHomeworks } from "@/lib/hooks/use-homeworks";
 
-export default function DashboardPage() {
+function DashboardContent() {
+  const { data: session } = useSession();
+  const tenantId = session?.selectedTenantId || undefined;
+
+  const { data: studentsData = [] } = useStudents({ tenantId });
+  const { data: groupsData } = useGroups({ tenantId });
+  const { data: teachersPage } = useTeachers({ tenantId, page: 1, pageSize: 10 });
+  const { data: coursesPage } = useCourses({ tenantId, page: 1, pageSize: 20 });
+  const { data: homeworksPage } = useHomeworks({ tenantId, courseId: undefined, page: 1, pageSize: 20 });
+  const { data: examsPage } = useExams({ tenantId, courseId: undefined, page: 1, pageSize: 20 });
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(today);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const { data: todaySessions = [] } = useSessions({
+    tenantId,
+    from: today.toISOString(),
+    to: endOfDay.toISOString(),
+  });
+
   const searchParams = useSearchParams();
   const query = searchParams.get("q");
 
   if (query) {
-    const filteredResults = dummyData.filter(item => 
-      item.title.toLowerCase().includes(query.toLowerCase())
+    const q = query.toLowerCase();
+    const filteredResults = studentsData.filter((s: any) =>
+      (s.fullName || '').toLowerCase().includes(q) ||
+      (s.studentCode || '').toLowerCase().includes(q)
     );
 
     return (
@@ -54,46 +77,31 @@ export default function DashboardPage() {
 
         <div className="space-y-4">
           {filteredResults.length > 0 ? (
-            filteredResults.map((result, idx) => (
-              <div 
-                key={idx}
-                className={`bg-white rounded-2xl p-5 shadow-sm border-r-4 flex items-center justify-between ${
-                  result.color === 'blue' ? 'border-r-blue-500' :
-                  result.color === 'purple' ? 'border-r-purple-500' :
-                  result.color === 'green' ? 'border-r-green-500' :
-                  'border-r-gray-500'
-                }`}
+            filteredResults.map((student: any) => (
+              <div
+                key={student.id}
+                className="bg-white rounded-2xl p-5 shadow-sm border-r-4 border-r-blue-500 flex items-center justify-between"
               >
                 <div className="flex items-center gap-4">
-                  {result.image ? (
-                    <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 relative">
-                      <Image src={result.image} fill alt={result.title} className="object-cover" />
-                    </div>
-                  ) : (
-                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${
-                      result.color === 'green' ? 'bg-green-50 text-green-600' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
-                      {result.iconOnly}
-                    </div>
-                  )}
-                  
+                  <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 relative bg-gray-100 flex items-center justify-center text-gray-500 font-bold">
+                    {student.photoUrl ? (
+                      <Image src={student.photoUrl} fill alt={student.fullName} className="object-cover" />
+                    ) : (
+                      <User size={24} />
+                    )}
+                  </div>
+
                   <div>
-                    <h3 className="font-bold text-gray-900 text-lg">{result.title}</h3>
-                    <p className="text-xs text-gray-400 mb-2">{result.idStr}</p>
+                    <h3 className="font-bold text-gray-900 text-lg">{student.fullName}</h3>
+                    <p className="text-xs text-gray-400 mb-2">كود: {student.studentCode || student.code || student.id}</p>
                     <div className="flex items-center gap-1 text-sm text-gray-500 font-medium">
-                      {result.icon} {result.subtitle}
+                      <GraduationCap size={16} /> {student.gradeLevelName || "طالب"}
                     </div>
                   </div>
                 </div>
 
-                <div className={`px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${
-                  result.color === 'blue' ? 'bg-blue-50 text-blue-600' :
-                  result.color === 'purple' ? 'bg-purple-50 text-purple-600' :
-                  result.color === 'green' ? 'bg-green-50 text-green-600' :
-                  'bg-gray-100 text-gray-600'
-                }`}>
-                   {result.tagIcon} {result.tagText}
+                <div className="px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-blue-50 text-blue-600">
+                  <GraduationCap size={14} /> طالب
                 </div>
               </div>
             ))
@@ -103,64 +111,77 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-start gap-2 mt-8">
-          <button className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
-            <ChevronRight size={16} />
-          </button>
-          <button className="w-8 h-8 rounded-full bg-[var(--primary)] text-white font-bold flex items-center justify-center shadow-md">
-            1
-          </button>
-          <button className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-700 font-bold hover:bg-gray-50">
-            2
-          </button>
-          <button className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-700 font-bold hover:bg-gray-50">
-            3
-          </button>
-          <span className="text-gray-400">...</span>
-          <button className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
-            <ChevronLeft size={16} />
-          </button>
-        </div>
       </div>
     );
   }
 
+  const recentStudents = studentsData.slice(0, 3);
+  const groupsList = groupsData?.items?.slice(0, 3) || [];
+  const teachersList = teachersPage?.items?.slice(0, 2) || [];
+  const activeHomeworksCount = homeworksPage?.items?.length || 0;
+  const activeExamsCount = examsPage?.items?.length || 0;
+  const activeCoursesCount = coursesPage?.items?.length || 0;
+  const totalRevenue = studentsData.length * 250;
+
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-10">
-      
+
       {/* Welcome Banner */}
-      <div className="relative w-full h-[320px] rounded-[32px] overflow-hidden shadow-sm">
-        <Image 
-          src="https://images.unsplash.com/photo-1513258496099-48168024aec0?q=80&w=2070&auto=format&fit=crop"
+      <div className="relative w-full h-[440px] rounded-[32px] overflow-hidden shadow-sm bg-gray-100">
+        <Image
+          src="/dashboard_teacher.jpg"
           alt="Welcome"
           fill
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-black/20" />
-        
-        {/* Curved Card Overlay */}
-        <div className="absolute bottom-0 right-0 w-full md:w-auto p-6 md:p-8">
-          <div className="bg-white/95 backdrop-blur-md rounded-[32px] p-6 md:px-10 md:py-8 shadow-xl max-w-2xl relative">
-            <h2 className="text-3xl font-extrabold text-[#1A2E44] mb-2 text-center">مرحباً بك مجدداً د. أحمد</h2>
-            <p className="text-gray-500 mb-8 text-center text-sm font-medium">إليك نظرة عامة على نشاط المركز اليوم</p>
-            
-            <div className="flex items-center justify-between px-4">
-              <div className="flex flex-col items-center">
-                <p className="text-xs text-gray-500 font-semibold mb-1">نسبة الحضور</p>
-                <p className="text-2xl font-black text-[#1A2E44] flex items-baseline gap-1">94% <span className="text-green-500 text-xs flex items-center">▲</span></p>
+        <div className="absolute inset-0 bg-black/10" />
+
+        {/* The White Overlay Container */}
+        <div className="absolute bottom-6 left-6 right-6 h-[180px] rounded-[32px] overflow-hidden z-10 shadow-[0_0_30px_rgba(255,255,255,0.6)] bg-white/75 backdrop-blur-sm">
+
+          {/* Top Left White Swoop (Opaque) */}
+          <div className="absolute -top-[140px] -left-[60px] w-[320px] h-[320px] bg-white rounded-full"></div>
+
+          {/* Bottom Right Circular Bump (Opaque) */}
+          <div className="absolute -right-[60px] -bottom-[120px] w-[280px] h-[280px] bg-white rounded-full"></div>
+
+          {/* Content layer */}
+          <div className="absolute inset-0 flex flex-row-reverse justify-between items-center z-20 px-8">
+
+            {/* Right Stat (حصص اليوم) */}
+            <div className="flex flex-col items-center justify-center w-[180px] h-full pt-6 pr-4">
+              <p className="text-slate-600 font-bold mb-2 text-[13px]">حصص اليوم</p>
+              <p className="text-2xl font-black text-[#001c56] flex items-center justify-center gap-2">
+                <BookOpen size={20} className="text-[#001c56]" /> {todaySessions.length}
+              </p>
+            </div>
+
+            {/* Center Welcome */}
+            <div className="flex-1 flex flex-col items-center justify-center h-full pt-2">
+              <h2 className="text-3xl md:text-4xl font-extrabold text-[#001c56] mb-3 tracking-tight" style={{ textShadow: '0 2px 10px rgba(255,255,255,0.95), 0 0 5px rgba(255,255,255,0.95)' }}>
+                مرحباً بك مجدداً {session?.email ? session.email.split('@')[0] : 'أستاذ'}
+              </h2>
+              <p className="text-[#001c56] text-sm md:text-base font-semibold mb-6" style={{ textShadow: '0 2px 10px rgba(255,255,255,0.95), 0 0 5px rgba(255,255,255,0.95)' }}>
+                إليك نظرة عامة على نشاط المركز اليوم
+              </p>
+
+              <div className="flex items-center gap-6">
+                <p className="text-[#001c56] font-bold text-sm" style={{ textShadow: '0 2px 10px rgba(255,255,255,0.95), 0 0 5px rgba(255,255,255,0.95)' }}>إجمالي الطلاب</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-green-600 text-[10px] mt-0.5">▲</span>
+                  <p className="text-2xl font-black text-[#001c56] flex items-center gap-1.5" style={{ textShadow: '0 2px 10px rgba(255,255,255,0.95), 0 0 5px rgba(255,255,255,0.95)' }}>
+                    {studentsData.length} <Users size={20} className="text-[#001c56]" />
+                  </p>
+                </div>
               </div>
-              <div className="w-px h-10 bg-gray-200"></div>
-              <div className="flex flex-col items-center">
-                <p className="text-xs text-gray-500 font-semibold mb-1">الطلاب الموجودون</p>
-                <p className="text-2xl font-black text-[#1A2E44] flex items-center gap-2">142 <Users size={18} className="text-blue-500" /></p>
-              </div>
-              <div className="w-px h-10 bg-gray-200"></div>
-              <div className="flex flex-col items-center">
-                <p className="text-xs text-gray-500 font-semibold mb-1">حصص اليوم</p>
-                <p className="text-2xl font-black text-[#1A2E44] flex items-center gap-2">42 <BookOpen size={18} className="text-[#1A2E44]" /></p>
-              </div>
+            </div>
+
+            {/* Left Stat (المجموعات النشطة) */}
+            <div className="flex flex-col items-center justify-center w-[180px] h-full pt-4 pl-4">
+              <p className="text-slate-600 font-bold mb-2 text-[13px]">المجموعات النشطة</p>
+              <p className="text-2xl font-black text-[#001c56] flex items-center justify-center gap-2">
+                {groupsData?.totalCount || 0}
+              </p>
             </div>
           </div>
         </div>
@@ -168,10 +189,10 @@ export default function DashboardPage() {
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
+
         {/* Right Column (Wider) */}
         <div className="lg:col-span-7 xl:col-span-8 space-y-8">
-          
+
           {/* Students Section */}
           <section className="bg-blue-50/30 rounded-[32px] p-6">
             <div className="flex justify-between items-center mb-6">
@@ -183,49 +204,33 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-4">
-              {/* Student Card 1 */}
-              <div className="bg-white rounded-3xl p-4 shadow-sm flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 relative">
-                  <Image src="https://i.pravatar.cc/150?u=a042581f4e29026024d" fill alt="Student" className="object-cover" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <h4 className="font-bold text-gray-900">محمد علي</h4>
-                    <span className="px-3 py-0.5 rounded-full bg-red-50 text-red-600 text-[10px] font-bold">فائقة الأهمية</span>
+              {recentStudents.length > 0 ? (
+                recentStudents.map((student: any) => (
+                  <div key={student.id} className="bg-white rounded-3xl p-4 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 relative bg-gray-100 flex items-center justify-center text-gray-500 font-bold">
+                      {student.photoUrl ? (
+                        <Image src={student.photoUrl} fill alt={student.fullName || "Student"} className="object-cover" />
+                      ) : (
+                        <User size={24} />
+                      )}
+                    </div>
+                    <div className="flex-1 text-right">
+                      <div className="flex items-center gap-3">
+                        <h4 className="font-bold text-gray-900">{student.fullName || `${student.firstName || ''} ${student.lastName || ''}`}</h4>
+                        <span className="px-3 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold">{student.status === 1 ? 'نشط' : 'مسجل'}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{student.gradeLevelName || "طالب"}</p>
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 text-xs text-gray-500 font-medium">
+                        <span className="flex items-center gap-1">كود: {student.studentCode || student.id?.substring(0, 8)}</span>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">الصف العاشر</p>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 font-medium">
-                    <span className="flex items-center gap-1"><MonitorPlay size={12} /> عن بعد</span>
-                    <span className="flex items-center gap-1"><BookOpen size={12} /> الفيزياء (كيمياء)</span>
-                    <span className="flex items-center gap-1">ST-3023-892</span>
-                  </div>
+                ))
+              ) : (
+                <div className="bg-white rounded-3xl p-6 text-center text-gray-400 font-medium text-sm">
+                  لا يوجد طلاب مسجلون حالياً
                 </div>
-                <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden flex-shrink-0 mr-4">
-                  <div className="w-[80%] h-full bg-[#1A2E44] rounded-full"></div>
-                </div>
-              </div>
-
-              {/* Student Card 2 */}
-              <div className="bg-white rounded-3xl p-4 shadow-sm flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 relative">
-                  <Image src="https://i.pravatar.cc/150?u=a04258a2462d826712d" fill alt="Student" className="object-cover" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <h4 className="font-bold text-gray-900">محمد حسن</h4>
-                    <span className="px-3 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold">فائقة الأهمية</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">الصف الثاني عشر</p>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 font-medium">
-                    <span className="flex items-center gap-1"><User size={12} /> سنتر</span>
-                    <span className="flex items-center gap-1"><BookOpen size={12} /> الفيزياء (فيزياء)</span>
-                    <span className="flex items-center gap-1">ST-3023-451</span>
-                  </div>
-                </div>
-                <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden flex-shrink-0 mr-4">
-                  <div className="w-[40%] h-full bg-[#1A2E44] rounded-full"></div>
-                </div>
-              </div>
+              )}
             </div>
           </section>
 
@@ -240,44 +245,24 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-4">
-              {/* Card 1 */}
-              <div className="bg-white border-r-4 border-r-[#1A2E44] rounded-2xl p-5 shadow-sm">
-                <div className="flex justify-between items-start mb-4">
-                  <h4 className="font-bold text-gray-900 text-lg">الرياضيات المتقدمة - الصف الثالث</h4>
-                  <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold">قادمة</span>
+              {groupsList.length > 0 ? (
+                groupsList.map((group: any) => (
+                  <div key={group.id} className="bg-white border-r-4 border-r-[#1A2E44] rounded-2xl p-5 shadow-sm">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-bold text-gray-900 text-lg">{group.name}</h4>
+                      <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold">{group.gradeLevelName || "نشطة"}</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-500 font-medium">
+                      <div className="flex items-center gap-2"><User size={16} /> المادة: {group.subjectName || "عامة"}</div>
+                      <div className="flex items-center gap-2"><Users size={16} /> الفرع: {group.branchName || "الرئيسي"}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="bg-white rounded-3xl p-6 text-center text-gray-400 font-medium text-sm">
+                  لا توجد مجموعات حالياً
                 </div>
-                <div className="flex items-center justify-between text-sm text-gray-500 font-medium">
-                  <div className="flex items-center gap-2"><User size={16} /> 23 / 30 طالب</div>
-                  <div className="flex items-center gap-2"><CalendarDays size={16} /> 14:00 - 15:30</div>
-                  <div className="text-xs">قاعة 101</div>
-                </div>
-              </div>
-
-              {/* Card 2 (Live) */}
-              <div className="bg-white border-r-4 border-r-red-500 rounded-2xl p-5 shadow-sm">
-                <div className="flex justify-between items-start mb-4">
-                  <h4 className="font-bold text-gray-900 text-lg">مجموعة الكيمياء - الصف الثاني الثانوي</h4>
-                  <span className="px-3 py-1 rounded-full bg-red-100 text-red-600 text-xs font-bold">الآن</span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-gray-500 font-medium">
-                  <div className="flex items-center gap-2"><User size={16} /> 18 / 25 طالب</div>
-                  <div className="flex items-center gap-2"><CalendarDays size={16} /> 08:00 - 09:30</div>
-                  <div className="text-xs">القاعة أ-101</div>
-                </div>
-              </div>
-
-              {/* Card 3 */}
-              <div className="bg-white border-r-4 border-r-blue-300 rounded-2xl p-5 shadow-sm">
-                <div className="flex justify-between items-start mb-4">
-                  <h4 className="font-bold text-gray-900 text-lg">جلسة تدريبية 5</h4>
-                  <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold">قادمة</span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-gray-500 font-medium">
-                  <div className="flex items-center gap-2"><User size={16} /> 15 / 30 طالب</div>
-                  <div className="flex items-center gap-2"><CalendarDays size={16} /> 14:00 - 15:30</div>
-                  <div className="text-xs">قاعة 104</div>
-                </div>
-              </div>
+              )}
             </div>
           </section>
 
@@ -288,17 +273,17 @@ export default function DashboardPage() {
                 <MonitorPlay size={24} className="text-blue-600" />
                 <h3 className="text-xl font-bold">التعليم الإلكتروني</h3>
               </div>
-              <Link href="#" className="text-sm font-bold text-gray-500 hover:text-[var(--primary)]">عرض المزيد</Link>
+              <Link href="/e-learning" className="text-sm font-bold text-gray-500 hover:text-[var(--primary)]">عرض المزيد</Link>
             </div>
 
             <div className="space-y-4">
               <div className="bg-white rounded-3xl p-5 shadow-sm flex items-center justify-between">
                 <div className="w-12 h-12 rounded-full border-[3px] border-blue-600 flex items-center justify-center font-bold text-blue-600 text-sm">
-                  99%
+                  {activeCoursesCount}
                 </div>
                 <div className="flex-1 mr-4">
                   <h4 className="font-bold text-gray-900">المقررات والواجبات</h4>
-                  <p className="text-xs text-gray-500 mt-1">12 واجب نشط • 4 اختبارات حديثة</p>
+                  <p className="text-xs text-gray-500 mt-1">{activeHomeworksCount} واجب نشط • {activeExamsCount} اختبار حديث</p>
                 </div>
                 <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
                   <ClipboardList size={20} />
@@ -306,16 +291,12 @@ export default function DashboardPage() {
               </div>
 
               <div className="bg-white rounded-3xl p-5 shadow-sm flex items-center justify-between">
-                <div className="flex items-end gap-1 h-8">
-                   <div className="w-2 bg-[#1A2E44] h-full rounded-t-sm"></div>
-                   <div className="w-2 bg-[#1A2E44] h-[60%] rounded-t-sm"></div>
-                   <div className="w-2 bg-[#1A2E44] h-[80%] rounded-t-sm"></div>
-                   <div className="w-2 bg-[#1A2E44] h-[40%] rounded-t-sm"></div>
-                   <div className="w-2 bg-gray-200 h-[70%] rounded-t-sm"></div>
+                <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center font-bold text-blue-600 text-sm">
+                  {activeExamsCount}
                 </div>
                 <div className="flex-1 mr-4">
                   <h4 className="font-bold text-gray-900">إحصائيات الاختبارات</h4>
-                  <p className="text-xs text-gray-500 mt-1">85% طالب أدوا الاختبار النهائي</p>
+                  <p className="text-xs text-gray-500 mt-1">{activeExamsCount > 0 ? 'اختبارات متاحة للطلاب' : 'لا توجد اختبارات حالياً'}</p>
                 </div>
                 <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
                   <BarChart3 size={20} />
@@ -328,7 +309,7 @@ export default function DashboardPage() {
 
         {/* Left Column (Narrower) */}
         <div className="lg:col-span-5 xl:col-span-4 space-y-8">
-          
+
           {/* Sessions Section */}
           <section className="bg-blue-50/30 rounded-[32px] p-6">
             <div className="flex justify-between items-center mb-6">
@@ -338,29 +319,28 @@ export default function DashboardPage() {
               </div>
               <Link href="/sessions" className="text-sm font-bold text-gray-500 hover:text-[var(--primary)]">عرض المزيد</Link>
             </div>
-            
-            <div className="space-y-4">
-              <div className="bg-white rounded-3xl p-4 shadow-sm flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full bg-green-50 text-green-600 text-xs font-bold">جارية</span>
-                <div className="flex-1 mr-4">
-                  <h4 className="font-bold text-gray-900 text-sm">جلسة مراجعة الفيزياء</h4>
-                  <p className="text-xs text-gray-500 mt-1">أ. عمر طارق • 12:30 م</p>
-                </div>
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                  <MonitorPlay size={20} />
-                </div>
-              </div>
 
-              <div className="bg-white rounded-3xl p-4 shadow-sm flex items-center justify-between">
-                <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold">قادمة</span>
-                <div className="flex-1 mr-4">
-                  <h4 className="font-bold text-gray-900 text-sm">استشارات أكاديمية</h4>
-                  <p className="text-xs text-gray-500 mt-1">د. نورة صالح • 02:00 م</p>
+            <div className="space-y-4">
+              {todaySessions.length > 0 ? (
+                todaySessions.slice(0, 3).map((sessionItem: any) => (
+                  <div key={sessionItem.id} className="bg-white rounded-3xl p-4 shadow-sm flex items-center justify-between">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${sessionItem.status === 2 ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                      {sessionItem.status === 2 ? 'منفذة' : 'مجدولة'}
+                    </span>
+                    <div className="flex-1 mr-4 text-right">
+                      <h4 className="font-bold text-gray-900 text-sm">{sessionItem.groupName || sessionItem.subjectName || "جلسة دراسية"}</h4>
+                      <p className="text-xs text-gray-500 mt-1">{sessionItem.teacherName ? `أ. ${sessionItem.teacherName}` : 'جلسة اليوم'}</p>
+                    </div>
+                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                      <MonitorPlay size={20} />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="bg-white rounded-3xl p-6 text-center text-gray-400 font-medium text-xs">
+                  لا توجد جلسات مجدولة اليوم
                 </div>
-                <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-600">
-                  <MessageSquare size={20} />
-                </div>
-              </div>
+              )}
             </div>
           </section>
 
@@ -376,73 +356,15 @@ export default function DashboardPage() {
 
             <div className="space-y-4">
               <div className="bg-white rounded-3xl p-5 shadow-sm flex items-center justify-between">
-                <div className="w-12 h-12 rounded-full border-[3px] border-[#1A2E44] flex items-center justify-center font-bold text-[#1A2E44] text-sm">
-                  65%
+                <div className="w-12 h-12 rounded-full border-[3px] border-[#1A2E44] flex items-center justify-center font-bold text-[#1A2E44] text-xs">
+                  {studentsData.length}
                 </div>
                 <div className="flex-1 mr-4">
-                  <h4 className="font-bold text-gray-900">إجمالي الإيرادات</h4>
-                  <p className="text-xs text-gray-500 mt-1">المحصل: 45,000 • المتبقي: 5,000</p>
+                  <h4 className="font-bold text-gray-900">إجمالي الإيرادات المقدرة</h4>
+                  <p className="text-xs text-gray-500 mt-1">{totalRevenue.toLocaleString()} ج.م • {studentsData.length} طالب</p>
                 </div>
                 <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
                   <Wallet size={20} />
-                </div>
-              </div>
-
-              <div className="bg-white rounded-3xl p-5 shadow-sm flex items-center justify-between">
-                 <div className="flex items-end gap-1 h-8">
-                   <div className="w-2 bg-[#1A2E44] h-[80%] rounded-t-sm"></div>
-                   <div className="w-2 bg-[#1A2E44] h-[60%] rounded-t-sm"></div>
-                   <div className="w-2 bg-[#1A2E44] h-[40%] rounded-t-sm"></div>
-                   <div className="w-2 bg-gray-200 h-[30%] rounded-t-sm"></div>
-                   <div className="w-2 bg-gray-200 h-[20%] rounded-t-sm"></div>
-                </div>
-                <div className="flex-1 mr-4">
-                  <h4 className="font-bold text-gray-900">اتجاه التحصيل</h4>
-                  <p className="text-xs text-gray-500 mt-1">نمو بنسبة 12% هذا الشهر</p>
-                </div>
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                  <TrendingUp size={20} />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Reports Section */}
-          <section className="bg-blue-50/30 rounded-[32px] p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-2 text-[#1A2E44]">
-                <FileText size={24} className="text-blue-600" />
-                <h3 className="text-xl font-bold">التقارير</h3>
-              </div>
-              <Link href="/reports" className="text-sm font-bold text-gray-500 hover:text-[var(--primary)]">عرض المزيد</Link>
-            </div>
-
-            <div className="space-y-4">
-               <div className="bg-white rounded-3xl p-4 shadow-sm flex items-center justify-between">
-                <div className="flex items-end gap-1 h-8">
-                   <div className="w-2 bg-[#1A2E44] h-[60%] rounded-t-sm"></div>
-                   <div className="w-2 bg-[#1A2E44] h-[80%] rounded-t-sm"></div>
-                   <div className="w-2 bg-[#1A2E44] h-full rounded-t-sm"></div>
-                </div>
-                <div className="flex-1 mr-4">
-                  <h4 className="font-bold text-gray-900 text-sm">تقرير الحضور</h4>
-                  <p className="text-xs text-gray-500 mt-1">متوسط الحضور الأسبوعي: 92%</p>
-                </div>
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                  <User size={20} />
-                </div>
-              </div>
-              
-              <div className="bg-white rounded-3xl p-4 shadow-sm flex items-center justify-between">
-                <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center font-bold text-blue-600 text-xs">
-                  جيد
-                </div>
-                <div className="flex-1 mr-4">
-                  <h4 className="font-bold text-gray-900 text-sm">الأداء الأكاديمي</h4>
-                  <p className="text-xs text-gray-500 mt-1">تحسن بنسبة 5% في نتائج الاختبارات</p>
-                </div>
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                  <GraduationCap size={20} />
                 </div>
               </div>
             </div>
@@ -458,16 +380,28 @@ export default function DashboardPage() {
               <Link href="/team" className="text-sm font-bold text-gray-500 hover:text-[var(--primary)]">عرض المزيد</Link>
             </div>
 
-            <div className="bg-white rounded-3xl p-4 shadow-sm flex items-center justify-between">
-              <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold">ممتاز</span>
-              <div className="flex-1 mr-4 text-right">
-                <h4 className="font-bold text-gray-900 text-sm">أ. محمد إبراهيم</h4>
-                <p className="text-xs text-gray-500 mt-1">كيمياء • 120 طالب</p>
+            {teachersList.length > 0 ? (
+              teachersList.map((teacher: any) => (
+                <div key={teacher.id} className="bg-white rounded-3xl p-4 shadow-sm flex items-center justify-between mb-3">
+                  <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold">معلم</span>
+                  <div className="flex-1 mr-4 text-right">
+                    <h4 className="font-bold text-gray-900 text-sm">{teacher.fullName}</h4>
+                    <p className="text-xs text-gray-500 mt-1">{teacher.phoneNumber || "مدرس معتمد"}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 relative bg-gray-100 flex items-center justify-center">
+                    {teacher.photoUrl ? (
+                      <Image src={teacher.photoUrl} fill alt={teacher.fullName} className="object-cover" />
+                    ) : (
+                      <User size={20} className="text-gray-500" />
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="bg-white rounded-3xl p-6 text-center text-gray-400 font-medium text-xs">
+                لا يوجد مدرسون حالياً
               </div>
-              <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 relative">
-                  <Image src="https://i.pravatar.cc/150?u=a042581f4e29026024f" fill alt="Teacher" className="object-cover" />
-              </div>
-            </div>
+            )}
           </section>
 
           {/* Financial Alerts */}
@@ -477,17 +411,17 @@ export default function DashboardPage() {
                 <AlertTriangle size={24} />
                 <h3 className="text-xl font-bold text-gray-900">التنبيهات المالية</h3>
               </div>
-              <Link href="/notifications" className="text-sm font-bold text-gray-500 hover:text-[var(--primary)]">عرض المزيد</Link>
+              <Link href="/finance" className="text-sm font-bold text-gray-500 hover:text-[var(--primary)]">عرض المزيد</Link>
             </div>
-            
+
             <div className="space-y-3 bg-white rounded-3xl p-5 shadow-sm">
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <span className="font-bold text-gray-700 text-sm">رصيد آجل مستحق</span>
-                <span className="font-black text-red-500 text-lg">4,500 <span className="text-xs font-normal">ج.م</span></span>
+                <span className="font-black text-gray-900 text-lg">0 <span className="text-xs font-normal">ج.م</span></span>
               </div>
               <div className="flex items-center justify-between pt-2">
                 <span className="font-bold text-gray-700 text-sm">فروق خزينة اليوم</span>
-                <span className="font-black text-yellow-500 text-lg">+120 <span className="text-xs font-normal">ج.م</span> <span className="text-xs text-yellow-500">▲</span></span>
+                <span className="font-black text-gray-900 text-lg">0 <span className="text-xs font-normal">ج.م</span></span>
               </div>
             </div>
           </section>
@@ -496,5 +430,17 @@ export default function DashboardPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-[50vh]">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }
