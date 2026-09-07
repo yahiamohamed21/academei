@@ -38,13 +38,13 @@ const statusOptions = [
   'متخرج / أكمل الكورسات'
 ];
 
-const subscriptionOptions = [
-  'اشتراك سنوي - أساسي',
-  'اشتراك نصف سنوي - ترم أول',
-  'اشتراك شهري - متجدد',
-  'باقة المراجعة النهائية',
-  'اشتراك منتهي الصلاحية'
+const paymentOptions = [
+  'مسدد بالكامل',
+  'غير مسدد / عليه مستحقات',
+  'إعفاء مالي / منحة'
 ];
+
+type FilterKey = 'group' | 'status' | 'branch' | 'payment';
 
 export default function StudentsPage() {
   const { data: session } = useSession();
@@ -52,11 +52,12 @@ export default function StudentsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [dropdownSearch, setDropdownSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState<'group' | 'status' | 'subscription' | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterKey | null>(null);
 
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
-  const [selectedSubscriptions, setSelectedSubscriptions] = useState<string[]>([]);
+  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
+  const [selectedPayments, setSelectedPayments] = useState<string[]>([]);
   
   // Quick View & Suspension State
   const [quickViewStudent, setQuickViewStudent] = useState<any | null>(null);
@@ -81,12 +82,15 @@ export default function StudentsPage() {
   const reactivateMutation = useReactivateStudent();
 
   const groupOptions = useMemo(() => {
-    return groupsData?.items?.map(g => g.name) || [
-      'مجموعة الرياضيات - أولى ثانوي',
-      'مجموعة الفيزياء - ثانية ثانوي',
-      'مجموعة الكيمياء - ثالثة ثانوي'
-    ];
-  }, [groupsData]);
+    const fetchedGroups = Array.isArray(groupsData) ? groupsData : (groupsData as any)?.items || [];
+    const groupNames = fetchedGroups.map((g: any) => g.name);
+    const gradeNames = (gradeLevels as any[]).map((g: any) => g.name);
+    return Array.from(new Set([...groupNames, ...gradeNames])).filter(Boolean);
+  }, [groupsData, gradeLevels]);
+
+  const branchOptions = useMemo(() => {
+    return (branches as any[]).map((b: any) => b.name).filter(Boolean);
+  }, [branches]);
 
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,20 +135,44 @@ export default function StudentsPage() {
     }
   };
   
+  const normalizedStudentsList = useMemo(() => {
+    return Array.isArray(studentsData) ? studentsData : (studentsData as any)?.items || [];
+  }, [studentsData]);
+
   const filteredStudents = useMemo(() => {
-    return studentsData.filter((student: any) => {
-      const q = searchQuery.toLowerCase();
-      const matchesSearch = 
+    return normalizedStudentsList.filter((student: any) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q || 
         (student.fullName || '').toLowerCase().includes(q) || 
         (student.studentCode || '').toLowerCase().includes(q) || 
+        (student.nationalId || '').toLowerCase().includes(q) ||
+        (student.phoneNumber || '').toLowerCase().includes(q) ||
         (student.id || '').toLowerCase().includes(q);
       
-      const statusText = student.status === 1 ? 'نشط ومستمر' : 'موقوف مؤقتاً (إدارياً)';
+      let statusText = 'نشط ومستمر';
+      if (student.status === 2) statusText = 'موقوف مؤقتاً (إدارياً)';
+      else if (student.status === 3) statusText = 'موقوف لعدم سداد المصروفات';
+      else if (student.status === 4) statusText = 'متخرج / أكمل الكورسات';
+
       const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(statusText);
       
-      return matchesSearch && matchesStatus;
+      const studentGradeLevelName = gradeLevels.find((g: any) => g.id === student.gradeLevelId)?.name || '';
+      const studentBranchName = branches.find((b: any) => b.id === student.branchId)?.name || '';
+      
+      const matchesGroup = selectedGroups.length === 0 || 
+        selectedGroups.includes(studentGradeLevelName) || 
+        selectedGroups.some(gName => (student.groupName || '').includes(gName));
+
+      const matchesBranch = selectedBranches.length === 0 || selectedBranches.includes(studentBranchName);
+
+      let studentPaymentText = 'مسدد بالكامل';
+      if (student.status === 3) studentPaymentText = 'غير مسدد / عليه مستحقات';
+
+      const matchesPayment = selectedPayments.length === 0 || selectedPayments.includes(studentPaymentText);
+
+      return matchesSearch && matchesStatus && matchesGroup && matchesBranch && matchesPayment;
     });
-  }, [studentsData, searchQuery, selectedStatuses]);
+  }, [normalizedStudentsList, searchQuery, selectedStatuses, selectedGroups, selectedBranches, selectedPayments, gradeLevels, branches]);
 
   const showEmptyState = filteredStudents.length === 0;
 
@@ -156,20 +184,22 @@ export default function StudentsPage() {
     }
   };
 
-  const removeTag = (option: string, type: 'group' | 'status' | 'subscription') => {
+  const removeTag = (option: string, type: FilterKey) => {
     if (type === 'group') setSelectedGroups(selectedGroups.filter(o => o !== option));
     if (type === 'status') setSelectedStatuses(selectedStatuses.filter(o => o !== option));
-    if (type === 'subscription') setSelectedSubscriptions(selectedSubscriptions.filter(o => o !== option));
+    if (type === 'branch') setSelectedBranches(selectedBranches.filter(o => o !== option));
+    if (type === 'payment') setSelectedPayments(selectedPayments.filter(o => o !== option));
   };
 
   const clearAllFilters = () => {
     setSelectedGroups([]);
     setSelectedStatuses([]);
-    setSelectedSubscriptions([]);
+    setSelectedBranches([]);
+    setSelectedPayments([]);
     setSearchQuery("");
   };
 
-  const handleDropdownOpen = (key: 'group' | 'status' | 'subscription') => {
+  const handleDropdownOpen = (key: FilterKey) => {
     if (activeFilter === key) {
       setActiveFilter(null);
     } else {
@@ -180,7 +210,7 @@ export default function StudentsPage() {
 
   const renderDropdown = (
     label: string, 
-    filterKey: 'group' | 'status' | 'subscription', 
+    filterKey: FilterKey, 
     options: string[], 
     selectedList: string[], 
     setList: (val: string[]) => void
@@ -320,11 +350,8 @@ export default function StudentsPage() {
             <div className="flex flex-wrap gap-3 flex-1 w-full">
               {renderDropdown("الفرقة / المجموعة", "group", groupOptions, selectedGroups, setSelectedGroups)}
               {renderDropdown("حالة الطالب", "status", statusOptions, selectedStatuses, setSelectedStatuses)}
-              {renderDropdown("حالة الاشتراك", "subscription", subscriptionOptions, selectedSubscriptions, setSelectedSubscriptions)}
-              
-              <Button variant="outline" className="bg-white text-gray-700 h-12 px-5 rounded-xl font-bold border-gray-200 hover:border-gray-300 gap-2">
-                الدفع <ChevronDown size={16} />
-              </Button>
+              {renderDropdown("الفرع / المقر", "branch", branchOptions, selectedBranches, setSelectedBranches)}
+              {renderDropdown("حالة الدفع", "payment", paymentOptions, selectedPayments, setSelectedPayments)}
             </div>
             
             {/* Search Input */}
@@ -336,7 +363,7 @@ export default function StudentsPage() {
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ابحث بالاسم أو الرقم... (اكتب 'empty' للتجربة)"
+                placeholder="ابحث بالاسم أو كود الطالب أو رقم الهاتف..."
                 className="w-full h-12 rounded-xl border border-gray-200 bg-white pr-12 pl-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all shadow-sm"
               />
             </div>
@@ -344,7 +371,7 @@ export default function StudentsPage() {
           </div>
           
           {/* Active Filters Tags */}
-          {(selectedGroups.length > 0 || selectedStatuses.length > 0 || selectedSubscriptions.length > 0) && (
+          {(selectedGroups.length > 0 || selectedStatuses.length > 0 || selectedBranches.length > 0 || selectedPayments.length > 0) && (
             <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
               <span className="text-xs text-gray-500 font-bold self-center">الفلاتر النشطة:</span>
               
@@ -362,10 +389,17 @@ export default function StudentsPage() {
                 </span>
               ))}
               
-              {selectedSubscriptions.map((option: string) => (
-                <span key={option} className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-50 border border-orange-100 text-orange-700 rounded-lg text-xs font-bold">
+              {selectedBranches.map((option: string) => (
+                <span key={option} className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-lg text-xs font-bold">
                   {option}
-                  <button onClick={() => removeTag(option, 'subscription')} className="hover:text-red-500 font-black ml-1 transition-colors">×</button>
+                  <button onClick={() => removeTag(option, 'branch')} className="hover:text-red-500 font-black ml-1 transition-colors">×</button>
+                </span>
+              ))}
+
+              {selectedPayments.map((option: string) => (
+                <span key={option} className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-100 text-amber-700 rounded-lg text-xs font-bold">
+                  {option}
+                  <button onClick={() => removeTag(option, 'payment')} className="hover:text-red-500 font-black ml-1 transition-colors">×</button>
                 </span>
               ))}
 
