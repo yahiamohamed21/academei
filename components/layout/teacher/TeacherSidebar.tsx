@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuthActions } from "@/lib/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { 
@@ -35,6 +36,8 @@ const navItems = [
 
 export function TeacherSidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { logout, isLoggingOut } = useAuthActions();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   return (
@@ -128,11 +131,20 @@ export function TeacherSidebar({ onClose }: { onClose?: () => void }) {
           
           <div className="flex gap-4">
             <button 
-              onClick={() => setIsLogoutModalOpen(false)}
+              onClick={async () => {
+                setIsLogoutModalOpen(false);
+                try {
+                  await logout();
+                } catch (e) {
+                  // ignore
+                }
+                router.push("/login");
+              }}
+              disabled={isLoggingOut}
               className="flex-1 h-14 bg-white border-2 border-red-100 text-red-600 font-bold rounded-2xl hover:bg-red-50 flex items-center justify-center gap-2 transition-colors"
             >
               <LogOut size={20} className="rtl:-scale-x-100" />
-              تسجيل الخروج
+              {isLoggingOut ? "جاري الخروج..." : "تسجيل الخروج"}
             </button>
             <button 
               onClick={() => setIsLogoutModalOpen(false)}

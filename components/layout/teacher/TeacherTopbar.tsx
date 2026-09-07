@@ -1,16 +1,24 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Bell, Settings, CheckCircle2, Menu } from "lucide-react";
+import { Search, Bell, Settings, Menu, Building2, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useSession, useTenantContext } from "@/lib/hooks/use-auth";
 
 export function TeacherTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isTenantMenuOpen, setIsTenantMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const tenantDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  const { data: session } = useSession();
+  const { selectedTenantId, setTenantId, memberships } = useTenantContext();
+
+  const activeMembership = memberships.find((m) => m.tenantId === selectedTenantId) || memberships[0];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,11 +27,14 @@ export function TeacherTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
     }
   };
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
+      }
+      if (tenantDropdownRef.current && !tenantDropdownRef.current.contains(event.target as Node)) {
+        setIsTenantMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -47,24 +58,57 @@ export function TeacherTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
           </button>
         )}
         <form onSubmit={handleSearch} className="flex-1">
-        <div className="relative group">
-          <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[var(--primary)] group-focus-within:text-[var(--primary)] transition-colors">
-            <Search size={18} />
-          </button>
-          <input 
-            type="text" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ابحث..."
-            className="w-full h-12 rounded-full border border-gray-200 bg-white pr-12 pl-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all shadow-sm"
-          />
-        </div>
+          <div className="relative group">
+            <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[var(--primary)] group-focus-within:text-[var(--primary)] transition-colors">
+              <Search size={18} />
+            </button>
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="ابحث..."
+              className="w-full h-12 rounded-full border border-gray-200 bg-white pr-12 pl-4 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all shadow-sm"
+            />
+          </div>
         </form>
       </div>
 
-      {/* Actions & Profile */}
+      {/* Tenant Context Selector & Profile / Actions */}
       <div className="flex items-center gap-2 md:gap-4 mr-2 md:mr-8">
         
+        {/* Tenant Selector */}
+        {memberships.length > 0 && (
+          <div className="relative" ref={tenantDropdownRef}>
+            <button
+              onClick={() => setIsTenantMenuOpen(!isTenantMenuOpen)}
+              className="flex items-center gap-2 px-3 py-2 text-xs md:text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all shadow-sm"
+            >
+              <Building2 size={16} className="text-blue-600" />
+              <span className="max-w-[120px] truncate">{activeMembership?.tenantName || "المركز التعليمي"}</span>
+              {memberships.length > 1 && <ChevronDown size={14} className="text-gray-400" />}
+            </button>
+
+            {isTenantMenuOpen && memberships.length > 1 && (
+              <div className="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+                <div className="p-2 text-xs font-bold text-gray-400 border-b border-gray-50">تبديل المركز</div>
+                {memberships.map((mem) => (
+                  <button
+                    key={mem.tenantId}
+                    onClick={() => {
+                      setTenantId(mem.tenantId);
+                      setIsTenantMenuOpen(false);
+                    }}
+                    className={`w-full text-right px-4 py-2.5 text-xs font-semibold flex items-center justify-between hover:bg-blue-50 transition-colors ${mem.tenantId === selectedTenantId ? 'bg-blue-50/70 text-[var(--primary)] font-bold' : 'text-gray-700'}`}
+                  >
+                    <span className="truncate">{mem.tenantName}</span>
+                    <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{mem.membershipStatus}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Notifications Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button 
@@ -107,16 +151,25 @@ export function TeacherTopbar({ onMenuClick }: { onMenuClick?: () => void }) {
 
         <div className="w-px h-8 bg-gray-200 mx-2"></div>
 
-        <Link href="/profile" className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm hover:ring-2 hover:ring-[var(--primary)]/30 transition-all cursor-pointer">
-          <Image 
-            src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=2070&auto=format&fit=crop" 
-            alt="Profile"
-            fill
-            className="object-cover"
-          />
+        {/* User Info & Profile Avatar */}
+        <Link href="/profile" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+          {session?.email && (
+            <span className="hidden md:inline-block text-xs font-semibold text-gray-600 dir-ltr">
+              {session.email}
+            </span>
+          )}
+          <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm hover:ring-2 hover:ring-[var(--primary)]/30 transition-all cursor-pointer">
+            <Image 
+              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=2070&auto=format&fit=crop" 
+              alt="Profile"
+              fill
+              className="object-cover"
+            />
+          </div>
         </Link>
       </div>
 
     </header>
   );
 }
+

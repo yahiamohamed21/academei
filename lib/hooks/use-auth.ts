@@ -10,8 +10,10 @@ export function useSession() {
       // Initialize CSRF token if missing
       try {
         await authService.getAntiforgeryToken();
-      } catch (err) {
-        console.warn("Could not pre-fetch CSRF token:", err);
+      } catch (err: any) {
+        if (process.env.NODE_ENV === "development" && err?.status !== 0) {
+          console.warn("Could not pre-fetch CSRF token:", err?.message || err);
+        }
       }
       return authService.getCurrentSession();
     },

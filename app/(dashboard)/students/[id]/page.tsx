@@ -16,27 +16,74 @@ import {
   Users,
   TriangleAlert,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  UserPlus,
+  Unlink,
+  Phone,
+  User,
+  Shield,
+  Loader2,
+  Plus
 } from "lucide-react";
 import { useSession } from "@/lib/hooks/use-auth";
-import { useStudent, useSuspendStudentAdministrative, useSuspendStudentNonPayment, useReactivateStudent } from "@/lib/hooks/use-student";
+import { 
+  useStudent, 
+  useSuspendStudentAdministrative, 
+  useSuspendStudentNonPayment, 
+  useReactivateStudent,
+  useGraduateStudent,
+  useGuardians,
+  useCreateGuardian,
+  useStudentGuardians, 
+  useLinkStudentGuardian, 
+  useUpdateStudentGuardian, 
+  useUnlinkStudentGuardian 
+} from "@/lib/hooks/use-students";
 import { useBranches } from "@/lib/hooks/use-branches";
 import { useGradeLevels } from "@/lib/hooks/use-grade-levels";
+
+const relationshipTypes = [
+  { value: 1, label: "أب" },
+  { value: 2, label: "أم" },
+  { value: 3, label: "ولي أمر شرعي" },
+  { value: 4, label: "آخر" },
+];
 
 export default function StudentProfilePage({ params }: { params: { id: string } }) {
   const { data: session } = useSession();
   const tenantId = session?.selectedTenantId || undefined;
   
   const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
+  const [isGraduateModalOpen, setIsGraduateModalOpen] = useState(false);
+  const [isLinkGuardianModalOpen, setIsLinkGuardianModalOpen] = useState(false);
+  const [isCreateGuardianModalOpen, setIsCreateGuardianModalOpen] = useState(false);
+
   const [suspendReason, setSuspendReason] = useState<"administrative" | "non-payment">("administrative");
   
+  // Link Guardian Form State
+  const [selectedGuardianId, setSelectedGuardianId] = useState("");
+  const [relationshipType, setRelationshipType] = useState<number>(1);
+  const [isPrimaryContact, setIsPrimaryContact] = useState<boolean>(true);
+
+  // New Guardian Form State
+  const [newGuardianName, setNewGuardianName] = useState("");
+  const [newGuardianPhone, setNewGuardianPhone] = useState("");
+
   const { data: student, isLoading, isError } = useStudent({ tenantId, studentId: params.id });
   const { data: branches = [] } = useBranches(tenantId);
   const { data: gradeLevels = [] } = useGradeLevels(tenantId);
+  const { data: tenantGuardians = [] } = useGuardians(tenantId);
+  const { data: studentGuardians = [], isLoading: isLoadingGuardians } = useStudentGuardians({ tenantId, studentId: params.id });
 
   const suspendAdminMutation = useSuspendStudentAdministrative();
   const suspendNonPaymentMutation = useSuspendStudentNonPayment();
   const reactivateMutation = useReactivateStudent();
+  const graduateMutation = useGraduateStudent();
+
+  const createGuardianMutation = useCreateGuardian();
+  const linkGuardianMutation = useLinkStudentGuardian();
+  const updateStudentGuardianMutation = useUpdateStudentGuardian();
+  const unlinkStudentGuardianMutation = useUnlinkStudentGuardian();
 
   if (isLoading) {
     return (
@@ -58,21 +105,25 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
   const branchName = branches.find(b => b.id === student.branchId)?.name || "غير محدد";
   const gradeLevelName = gradeLevels.find(g => g.id === student.gradeLevelId)?.name || "غير محدد";
 
-  // Map integer status to text & color
+  // Map status integer
   let statusText = "غير معروف";
   let statusColor = "bg-gray-100 text-gray-600 border-gray-200";
   let statusIndicator = "bg-gray-500";
   
-  if (student.status === 1) { // Assuming 1 is Active
-    statusText = "نشط";
+  if (student.status === 1) {
+    statusText = "نشط ومستمر";
     statusColor = "bg-blue-50 text-blue-700 border-blue-100";
     statusIndicator = "bg-green-500";
-  } else if (student.status === 2 || student.status === 3) { // Assuming 2/3 are suspended
-    statusText = "موقوف";
+  } else if (student.status === 2) {
+    statusText = "موقوف مؤقتاً (إدارياً)";
+    statusColor = "bg-amber-50 text-amber-700 border-amber-100";
+    statusIndicator = "bg-amber-500";
+  } else if (student.status === 3) {
+    statusText = "موقوف (عدم سداد المصروفات)";
     statusColor = "bg-red-50 text-red-700 border-red-100";
     statusIndicator = "bg-red-500";
-  } else if (student.status === 4) { // Assuming 4 is Graduated
-    statusText = "خريج";
+  } else if (student.status === 4) {
+    statusText = "خريج / أكمل الكورسات";
     statusColor = "bg-purple-50 text-purple-700 border-purple-100";
     statusIndicator = "bg-purple-500";
   }
@@ -97,6 +148,95 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
       window.alert("تم تفعيل حساب الطالب بنجاح");
     } catch (error: any) {
       window.alert(error.message || "حدث خطأ أثناء تفعيل الحساب");
+    }
+  };
+
+  const handleGraduate = async () => {
+    try {
+      await graduateMutation.mutateAsync({ tenantId, studentId: student.id });
+      setIsGraduateModalOpen(false);
+      window.alert("تم تسجيل الطالب كخريج بنجاح");
+    } catch (error: any) {
+      window.alert(error.message || "حدث خطأ أثناء تسجيل التخرج");
+    }
+  };
+
+  const handleLinkGuardian = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tenantId || !selectedGuardianId) return;
+
+    try {
+      await linkGuardianMutation.mutateAsync({
+        tenantId,
+        studentId: student.id,
+        body: {
+          guardianId: selectedGuardianId,
+          relationshipType: relationshipType as any,
+          isPrimaryContact,
+        },
+      });
+      setIsLinkGuardianModalOpen(false);
+      setSelectedGuardianId("");
+    } catch (error: any) {
+      window.alert(error.message || "حدث خطأ أثناء ربط ولي الأمر");
+    }
+  };
+
+  const handleCreateAndLinkGuardian = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tenantId || !newGuardianName || !newGuardianPhone) return;
+
+    try {
+      const guardianRes: any = await createGuardianMutation.mutateAsync({
+        tenantId,
+        body: {
+          fullName: newGuardianName,
+          phoneNumber: newGuardianPhone,
+        },
+      });
+
+      if (guardianRes?.id) {
+        await linkGuardianMutation.mutateAsync({
+          tenantId,
+          studentId: student.id,
+          body: {
+            guardianId: guardianRes.id,
+            relationshipType: relationshipType as any,
+            isPrimaryContact,
+          },
+        });
+      }
+      setIsCreateGuardianModalOpen(false);
+      setNewGuardianName("");
+      setNewGuardianPhone("");
+    } catch (error: any) {
+      window.alert(error.message || "حدث خطأ أثناء إنشاء وربط ولي الأمر");
+    }
+  };
+
+  const handleUnlinkGuardian = async (guardianId: string) => {
+    if (!tenantId || !window.confirm("هل أنت متأكد من إلغاء ربط ولي الأمر بالطالب؟")) return;
+    try {
+      await unlinkStudentGuardianMutation.mutateAsync({ tenantId, studentId: student.id, guardianId });
+    } catch (error: any) {
+      window.alert(error.message || "حدث خطأ أثناء إلغاء الربط");
+    }
+  };
+
+  const handleTogglePrimaryContact = async (gLink: any) => {
+    if (!tenantId) return;
+    try {
+      await updateStudentGuardianMutation.mutateAsync({
+        tenantId,
+        studentId: student.id,
+        guardianId: gLink.guardianId,
+        body: {
+          relationshipType: gLink.relationshipType,
+          isPrimaryContact: !gLink.isPrimaryContact,
+        },
+      });
+    } catch (error: any) {
+      window.alert(error.message || "حدث خطأ أثناء تحديث بيانات الربط");
     }
   };
 
@@ -132,8 +272,12 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
         {/* Profile Info Header */}
         <div className="relative px-8 pb-8 flex flex-col items-center text-center -mt-16 z-10">
           <div className="relative group">
-            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg bg-white relative">
-              <Image src={student.photoUrl || "https://i.pravatar.cc/150?u=student"} alt={student.fullName} fill className="object-cover" />
+            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg bg-white relative flex items-center justify-center text-gray-400">
+              {student.photoUrl ? (
+                <Image src={student.photoUrl} alt={student.fullName} fill className="object-cover" />
+              ) : (
+                <User size={48} />
+              )}
             </div>
             <Link 
               href={`/students/${student.id}/edit`} 
@@ -144,7 +288,7 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
           </div>
           
           <h1 className="text-2xl font-black text-gray-900 mt-4 mb-1">{student.fullName}</h1>
-          <p className="text-gray-500 font-medium mb-3">ID: {student.studentCode || `ST-${student.id.substring(0, 8)}`}</p>
+          <p className="text-gray-500 font-medium mb-3">كود الطالب: {student.studentCode || `ST-${student.id.substring(0, 8)}`}</p>
           <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold border ${statusColor}`}>
             <span className={`w-2.5 h-2.5 rounded-full ${statusIndicator}`} />
             {statusText}
@@ -153,49 +297,97 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 md:p-8 bg-gray-50/50">
           
-          {/* Left Column (Sidebar-like info) */}
+          {/* Left Column */}
           <div className="space-y-6">
             
-            {/* Recent Activity (Placeholder) */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm opacity-60 pointer-events-none">
-              <h3 className="text-lg font-black text-[#1e3a8a] mb-6 flex items-center gap-2">
-                <History className="text-[var(--primary)]" size={20} />
-                النشاط الأخير (قريباً)
-              </h3>
-              
-              <div className="space-y-5">
-                <div className="flex gap-4 relative">
-                  <div className="absolute top-2 bottom-[-20px] right-[7px] w-px bg-gray-100" />
-                  <div className="relative z-10 w-4 h-4 rounded-full bg-[#1e3a8a] mt-1 shrink-0 ring-4 ring-white shadow-sm" />
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">حضور محاضرة الرياضيات الهندسية</p>
-                    <p className="text-xs text-gray-400 font-medium mt-1">اليوم - 10:30 ص</p>
-                  </div>
+            {/* Guardian Links Section */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-black text-[#1e3a8a] flex items-center gap-2">
+                  <Shield className="text-[var(--primary)]" size={20} />
+                  أولياء الأمور
+                </h3>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={() => setIsLinkGuardianModalOpen(true)}
+                    className="text-xs bg-blue-50 text-[var(--primary)] font-bold px-2.5 py-1.5 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1"
+                  >
+                    <UserPlus size={14} /> ربط
+                  </button>
+                  <button 
+                    onClick={() => setIsCreateGuardianModalOpen(true)}
+                    className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-1"
+                  >
+                    <Plus size={14} /> جديد
+                  </button>
                 </div>
               </div>
+
+              {isLoadingGuardians ? (
+                <div className="text-center py-6 text-xs text-gray-500 font-medium">جاري التحميل...</div>
+              ) : studentGuardians.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-gray-200 rounded-xl">
+                  <p className="text-xs text-gray-500 font-medium mb-3">لا يوجد أولياء أمور مرتبطين بعد</p>
+                  <Button onClick={() => setIsLinkGuardianModalOpen(true)} variant="outline" className="text-xs h-8 px-3 font-bold">
+                    ربط ولي أمر
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {studentGuardians.map((gLink: any) => {
+                    const matchedGuardian = tenantGuardians.find((g: any) => g.id === gLink.guardianId);
+                    const relLabel = relationshipTypes.find(r => r.value === gLink.relationshipType)?.label || "ولي أمر";
+
+                    return (
+                      <div key={gLink.guardianId} className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900 text-sm">{matchedGuardian?.fullName || 'ولي أمر'}</span>
+                            {gLink.isPrimaryContact && (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded">الرئيسي</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                            <span>صلة القرابة: {relLabel}</span>
+                            {matchedGuardian?.phoneNumber && (
+                              <span className="flex items-center gap-1 font-mono text-gray-700"><Phone size={10} /> {matchedGuardian.phoneNumber}</span>
+                            )}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => handleTogglePrimaryContact(gLink)}
+                            title="تغيير صفة الاتصال الرئيسي"
+                            className="p-1.5 text-gray-400 hover:text-amber-600 transition-colors"
+                          >
+                            <Star size={16} fill={gLink.isPrimaryContact ? "currentColor" : "none"} className={gLink.isPrimaryContact ? "text-amber-500" : ""} />
+                          </button>
+                          <button 
+                            onClick={() => handleUnlinkGuardian(gLink.guardianId)}
+                            title="إلغاء الربط"
+                            className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+                          >
+                            <Unlink size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* Stats Cards (Placeholder) */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-between opacity-60 pointer-events-none">
+            {/* Quick Stats Cards */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
                   <Star size={24} fill="currentColor" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 font-bold mb-1">متوسط الدرجات (قريباً)</p>
-                  <p className="text-2xl font-black text-gray-900">--%</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-between opacity-60 pointer-events-none">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
-                  <UserCheck size={24} />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 font-bold mb-1">نسبة الحضور (قريباً)</p>
-                  <p className="text-2xl font-black text-gray-900">--%</p>
+                  <p className="text-xs text-gray-500 font-bold mb-1">تاريخ الالتحاق</p>
+                  <p className="text-sm font-black text-gray-900">
+                    {student.enrollmentDate ? new Date(student.enrollmentDate).toLocaleDateString("ar-EG") : '--'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -209,71 +401,61 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
               <h3 className="text-lg font-black text-[#1e3a8a] mb-6 flex items-center gap-2">
                 <GraduationCap className="text-[var(--primary)]" size={22} />
-                البيانات الأكاديمية
+                البيانات الأكاديمية والشخصية
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
-                  <p className="text-xs text-gray-500 font-bold mb-2">الفرقة الدراسية</p>
+                  <p className="text-xs text-gray-500 font-bold mb-2">الصف / المرحلة الدراسية</p>
                   <p className="font-black text-gray-900">{gradeLevelName}</p>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
-                  <p className="text-xs text-gray-500 font-bold mb-2">الفرع</p>
+                  <p className="text-xs text-gray-500 font-bold mb-2">الفرع / المقر</p>
                   <p className="font-black text-gray-900">{branchName}</p>
                 </div>
-              </div>
-            </div>
-
-            {/* Financial Info (Placeholder) */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm opacity-60 pointer-events-none">
-              <h3 className="text-lg font-black text-[#1e3a8a] mb-6 flex items-center gap-2">
-                <CreditCard className="text-[var(--primary)]" size={22} />
-                البيانات المالية والاشتراكات (قريباً)
-              </h3>
-              
-              <div className="flex flex-col md:flex-row gap-4 mb-6">
-                <div className="flex-1 bg-blue-50/50 rounded-xl p-4 border border-blue-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-blue-500 font-bold mb-1">الباقة الحالية</p>
-                    <p className="font-black text-[#1e3a8a]">باقة الكيمياء المكثفة</p>
-                  </div>
-                  <div className="text-left bg-white px-4 py-2 rounded-lg border border-blue-50 shadow-sm">
-                    <p className="text-[10px] text-gray-500 font-bold mb-0.5">تاريخ الانتهاء:</p>
-                    <p className="font-bold text-gray-900 text-sm">2024/12/30</p>
-                  </div>
+                <div className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
+                  <p className="text-xs text-gray-500 font-bold mb-2">رقم الهوية / القومي</p>
+                  <p className="font-black text-gray-900">{student.nationalId || '--'}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
+                  <p className="text-xs text-gray-500 font-bold mb-2">رقم الهاتف</p>
+                  <p className="font-black text-gray-900">{student.phoneNumber || '--'}</p>
                 </div>
               </div>
             </div>
 
-            {/* Danger Zone */}
-            {student.status === 1 ? (
-              <div className="bg-[#fff1f2] rounded-2xl p-6 border border-red-100 flex flex-col md:flex-row items-center justify-between gap-4 mt-8">
-                <div className="text-right">
-                  <h4 className="text-red-700 text-lg font-black mb-1">تريد إيقاف حساب الطالب؟</h4>
-                  <p className="text-red-400 font-medium">لن يتمكن الطالب من الوصول إلى حسابه بعد الإيقاف.</p>
-                </div>
-                <Button 
-                  onClick={() => setIsSuspendModalOpen(true)}
-                  className="bg-[#ffe4e6] hover:bg-red-200 text-red-600 px-10 h-12 rounded-xl font-bold gap-2 shadow-sm"
-                >
-                  إيقاف <XCircle size={18} />
-                </Button>
+            {/* Actions & Status Management */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
+              <h3 className="text-lg font-black text-gray-900 mb-2">إدارة حالة الطالب</h3>
+
+              <div className="flex flex-wrap gap-3">
+                {student.status === 1 ? (
+                  <>
+                    <Button 
+                      onClick={() => setIsSuspendModalOpen(true)}
+                      className="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 h-11 px-5 rounded-xl font-bold gap-2 text-sm"
+                    >
+                      <XCircle size={16} /> إيقاف حساب الطالب
+                    </Button>
+                    <Button 
+                      onClick={() => setIsGraduateModalOpen(true)}
+                      className="bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 h-11 px-5 rounded-xl font-bold gap-2 text-sm"
+                    >
+                      <GraduationCap size={16} /> تسجيل كخريج
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    onClick={handleReactivate}
+                    disabled={reactivateMutation.isPending}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-6 rounded-xl font-bold gap-2 text-sm shadow-sm"
+                  >
+                    {reactivateMutation.isPending ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle size={16} />}
+                    إعادة تفعيل الحساب
+                  </Button>
+                )}
               </div>
-            ) : (
-              <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-100 flex flex-col md:flex-row items-center justify-between gap-4 mt-8">
-                <div className="text-right">
-                  <h4 className="text-emerald-700 text-lg font-black mb-1">إعادة تفعيل حساب الطالب؟</h4>
-                  <p className="text-emerald-500 font-medium">سيتمكن الطالب من الدخول إلى حسابه والمحتوى الخاص به.</p>
-                </div>
-                <Button 
-                  onClick={handleReactivate}
-                  disabled={reactivateMutation.isPending}
-                  className="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-10 h-12 rounded-xl font-bold gap-2 shadow-sm"
-                >
-                  {reactivateMutation.isPending ? "جاري التفعيل..." : "تفعيل الحساب"} <CheckCircle size={18} />
-                </Button>
-              </div>
-            )}
+            </div>
 
           </div>
 
@@ -290,34 +472,23 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
               <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center text-red-600 mb-6">
                 <TriangleAlert size={32} />
               </div>
-              <h3 className="text-xl font-black text-gray-900 mb-2">هل أنت متأكد من إيقاف حساب الطالب؟</h3>
-              <p className="text-gray-500 font-medium mb-6 leading-relaxed">
-                سيتم تعليق وصول الطالب للمحتوى الأكاديمي والمنصة مؤقتاً حتى يتم إعادة التفعيل يدوياً.
+              <h3 className="text-xl font-black text-gray-900 mb-2">إيقاف حساب الطالب</h3>
+              <p className="text-gray-500 font-medium mb-6 leading-relaxed text-sm">
+                اختر سبب الإيقاف المناسب لإجراء التغيير على حالة الطالب.
               </p>
               
               <div className="w-full text-right mb-6">
-                <label className="block text-sm font-bold text-gray-700 mb-2">سبب الإيقاف:</label>
+                <label className="block text-xs font-bold text-gray-700 mb-2">سبب الإيقاف:</label>
                 <select 
                   value={suspendReason} 
                   onChange={(e) => setSuspendReason(e.target.value as "administrative" | "non-payment")}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-blue-500"
                 >
-                  <option value="administrative">إيقاف إداري (مخالفة سلوكية، إلخ)</option>
+                  <option value="administrative">إيقاف إداري (مخالفة سلوكية أو إدارية)</option>
                   <option value="non-payment">إيقاف مالي (عدم سداد المصروفات)</option>
                 </select>
               </div>
 
-              <div className="bg-gray-50 rounded-xl p-4 w-full flex items-center justify-between mb-8 border border-gray-100">
-                <div className="text-right">
-                  <p className="text-sm font-bold text-gray-900">{student.fullName}</p>
-                  <p className="text-xs text-gray-500 mt-1">{student.studentCode || `ST-${student.id.substring(0, 8)}`}</p>
-                </div>
-                <div className="text-left text-xs font-bold text-gray-500 space-y-1">
-                  <p>الطالب:</p>
-                  <p>المعرف:</p>
-                </div>
-              </div>
-              
               <div className="flex w-full gap-3">
                 <Button 
                   onClick={() => setIsSuspendModalOpen(false)}
@@ -339,7 +510,195 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
           </div>
         </div>
       )}
+
+      {/* Graduation Modal */}
+      {isGraduateModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => !graduateMutation.isPending && setIsGraduateModalOpen(false)} />
+          
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative z-10 animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 mb-6">
+                <GraduationCap size={32} />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 mb-2">تخرج الطالب</h3>
+              <p className="text-gray-500 font-medium mb-8 leading-relaxed text-sm">
+                هل أنت متأكد من تغيير حالة الطالب إلى (خريج)؟ عادة ما تعتبر هذه العملية غير قابلة للتراجع.
+              </p>
+              
+              <div className="flex w-full gap-3">
+                <Button 
+                  onClick={() => setIsGraduateModalOpen(false)}
+                  disabled={graduateMutation.isPending}
+                  variant="outline" 
+                  className="flex-1 h-12 rounded-xl font-bold border-gray-200 text-gray-600 hover:bg-gray-50"
+                >
+                  إلغاء
+                </Button>
+                <Button 
+                  onClick={handleGraduate}
+                  disabled={graduateMutation.isPending}
+                  className="flex-1 h-12 bg-purple-700 hover:bg-purple-800 text-white rounded-xl font-bold"
+                >
+                  {graduateMutation.isPending ? "جاري التغيير..." : "تأكيد التخرج"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Link Guardian Modal */}
+      {isLinkGuardianModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setIsLinkGuardianModalOpen(false)} />
+          
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative z-10 animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-black text-gray-900 mb-6">ربط ولي أمر موجود</h3>
+            <form onSubmit={handleLinkGuardian} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-700">اختر ولي الأمر *</label>
+                <select 
+                  required
+                  value={selectedGuardianId}
+                  onChange={(e) => setSelectedGuardianId(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-[var(--primary)]"
+                >
+                  <option value="">-- اختر ولي الأمر --</option>
+                  {tenantGuardians.map((g: any) => (
+                    <option key={g.id} value={g.id}>{g.fullName} ({g.phoneNumber})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-700">صلة القرابة *</label>
+                <select 
+                  value={relationshipType}
+                  onChange={(e) => setRelationshipType(Number(e.target.value))}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-[var(--primary)]"
+                >
+                  {relationshipTypes.map(rt => (
+                    <option key={rt.value} value={rt.value}>{rt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <input 
+                  type="checkbox" 
+                  id="primaryContactCheck"
+                  checked={isPrimaryContact}
+                  onChange={(e) => setIsPrimaryContact(e.target.checked)}
+                  className="w-4 h-4 rounded text-[var(--primary)] focus:ring-[var(--primary)]"
+                />
+                <label htmlFor="primaryContactCheck" className="text-sm font-bold text-gray-700 cursor-pointer">
+                  تعيين كجهة اتصال رئيسية
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button 
+                  type="button"
+                  onClick={() => setIsLinkGuardianModalOpen(false)}
+                  variant="outline" 
+                  className="flex-1 h-12 rounded-xl font-bold border-gray-200 text-gray-600"
+                >
+                  إلغاء
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={linkGuardianMutation.isPending}
+                  className="flex-1 h-12 bg-[#001c56] hover:bg-[#001033] text-white rounded-xl font-bold"
+                >
+                  {linkGuardianMutation.isPending ? <Loader2 className="animate-spin" size={18} /> : "تأكيد الربط"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create & Link Guardian Modal */}
+      {isCreateGuardianModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setIsCreateGuardianModalOpen(false)} />
+          
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative z-10 animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-black text-gray-900 mb-6">إنشاء وربط ولي أمر جديد</h3>
+            <form onSubmit={handleCreateAndLinkGuardian} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-700">اسم ولي الأمر بالكامل *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={newGuardianName}
+                  onChange={(e) => setNewGuardianName(e.target.value)}
+                  placeholder="أدخل اسم ولي الأمر"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-[var(--primary)]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-700">رقم الهاتف *</label>
+                <input 
+                  type="text" 
+                  required
+                  value={newGuardianPhone}
+                  onChange={(e) => setNewGuardianPhone(e.target.value)}
+                  placeholder="أدخل رقم الهاتف"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-[var(--primary)]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-700">صلة القرابة *</label>
+                <select 
+                  value={relationshipType}
+                  onChange={(e) => setRelationshipType(Number(e.target.value))}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium outline-none focus:border-[var(--primary)]"
+                >
+                  {relationshipTypes.map(rt => (
+                    <option key={rt.value} value={rt.value}>{rt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <input 
+                  type="checkbox" 
+                  id="primaryContactCheckNew"
+                  checked={isPrimaryContact}
+                  onChange={(e) => setIsPrimaryContact(e.target.checked)}
+                  className="w-4 h-4 rounded text-[var(--primary)] focus:ring-[var(--primary)]"
+                />
+                <label htmlFor="primaryContactCheckNew" className="text-sm font-bold text-gray-700 cursor-pointer">
+                  تعيين كجهة اتصال رئيسية
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button 
+                  type="button"
+                  onClick={() => setIsCreateGuardianModalOpen(false)}
+                  variant="outline" 
+                  className="flex-1 h-12 rounded-xl font-bold border-gray-200 text-gray-600"
+                >
+                  إلغاء
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={createGuardianMutation.isPending || linkGuardianMutation.isPending}
+                  className="flex-1 h-12 bg-[#001c56] hover:bg-[#001033] text-white rounded-xl font-bold"
+                >
+                  {(createGuardianMutation.isPending || linkGuardianMutation.isPending) ? <Loader2 className="animate-spin" size={18} /> : "حفظ وربط"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
-
