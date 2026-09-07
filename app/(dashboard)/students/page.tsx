@@ -5,12 +5,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/Button";
-import { useSession } from "@/lib/hooks/use-auth";
-import { useStudents, useCreateStudent } from "@/lib/hooks/use-students";
+import { 
+  useStudents, 
+  useCreateStudent, 
+  useSuspendStudentAdministrative, 
+  useReactivateStudent 
+} from "@/lib/hooks/use-students";
 import { useGradeLevels } from "@/lib/hooks/use-grade-levels";
 import { useBranches } from "@/lib/hooks/use-branches";
 import { useGroups } from "@/lib/hooks/use-groups";
-import { useSuspendStudentAdministrative, useReactivateStudent } from "@/lib/hooks/use-student";
 import { 
   UserPlus, 
   Search, 
@@ -26,6 +29,7 @@ import {
   XCircle,
   Loader2
 } from "lucide-react";
+import { useSession } from "@/lib/hooks/use-auth";
 
 const statusOptions = [
   'نشط ومستمر',
@@ -436,16 +440,27 @@ export default function StudentsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-gray-700 font-medium">--</td>
+                    <td className="py-4 px-6 text-gray-700 font-medium">
+                      <div>
+                        <p className="font-bold text-gray-900">{student.gradeLevelName || '--'}</p>
+                        <p className="text-xs text-gray-500 font-medium mt-0.5">{student.branchName || '--'}</p>
+                      </div>
+                    </td>
                     <td className="py-4 px-6">
-                      <p className="font-bold text-gray-900">--</p>
-                      <p className="text-xs text-gray-500 mt-0.5">الالتحاق: {student.enrollmentDate ? new Date(student.enrollmentDate).toLocaleDateString() : '--'}</p>
+                      <p className="text-xs text-gray-700 font-medium">تاريخ الالتحاق:</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{student.enrollmentDate ? new Date(student.enrollmentDate).toLocaleDateString("ar-EG") : '--'}</p>
                     </td>
                     <td className="py-4 px-6">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border 
-                        ${student.status === 1 ? 'bg-blue-50 text-[var(--primary)] border-blue-100' : 
-                          'bg-red-50 text-red-600 border-red-100'}`}>
-                        {student.status === 1 ? 'نشط' : 'غير نشط'}
+                        ${student.status === 1 ? 'bg-blue-50 text-blue-700 border-blue-100' : 
+                          student.status === 2 ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                          student.status === 3 ? 'bg-red-50 text-red-700 border-red-100' :
+                          student.status === 4 ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                          'bg-gray-50 text-gray-700 border-gray-100'}`}>
+                        {student.status === 1 ? 'نشط' : 
+                         student.status === 2 ? 'موقوف (إداري)' :
+                         student.status === 3 ? 'موقوف (مالي)' :
+                         student.status === 4 ? 'خريج' : 'غير معروف'}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-gray-500 font-medium text-xs">--</td>
